@@ -1,0 +1,48 @@
+# Arrival-tolerance probe (docs/mock_world_spec.md's open RequestStateMove-arrival item). Measures
+# where a sync "Move Unit" actually stops -- the one movement fact still unmeasured in-game: when
+# need_move flips false, and whether the range (the target value's num) widens the stop distance.
+#
+# In-game protocol: park the unit in a CLEAR area with 12+ open tiles to the EAST, optionally
+# bind the Target parameter to a nearby unit/building/resource (enables the entity-target cases),
+# run once, and read the debug log. Each case prints three values in a row:
+#   <case marker>  <get_distance readout to the target>  <stop coordinate>
+# Case markers: 100/102/105 = coordinate target (10 east of start) with range 0/2/5;
+#               200/202/205 = entity target (the Target parameter) with range 0/2/5;
+#               888 = path blocked (that case is invalid -- reposition, rerun); 999 = done.
+# The unit returns to its start tile between cases so every approach starts identically.
+#
+# The mock's PROVISIONAL arrival model (world.lua: get_distance <= range, floored at 1 for an
+# entity target) is pinned against this same probe in tests/test_arrival_probe.py -- the in-game
+# numbers drop in as goldens there once this has been run for real.
+behavior ArrivalProbe(Target):
+  desc: "Arrival-tolerance probe: sync-moves to a coordinate 10 east of start (ranges 0/2/5) and, if the Target parameter is bound, to that unit (ranges 0/2/5); after each arrival prints case marker, get_distance readout, and stop coordinate to the debug log, returning to the start tile between cases."
+
+n1: unlock()
+n2: get_self(Unit Reference=$Self)
+n3: get_location(Unit=$Self, Coord=$Home)
+n4: separate_coordinate(Coordinate=$Home, X=$HX, Y=$HY)
+n5: add(To=$HX, Num=10, Result=$EX, cmt="coordinate target: 10 tiles east of start")
+n6: combine_coordinate(X=$EX, Y=$HY, Result=$East)
+
+n7: call(Dest=$East, R=0, Marker=100, Home=$Home, sub=1)
+n8: call(Dest=$East, R=2, Marker=102, Home=$Home, sub=1)
+n9: call(Dest=$East, R=5, Marker=105, Home=$Home, sub=1)
+
+n10: is_empty(Value=Target)  >done (Empty) >NEXT (Has Value)
+n11: call(Dest=Target, R=0, Marker=200, Home=$Home, sub=1)
+n12: call(Dest=Target, R=2, Marker=202, Home=$Home, sub=1)
+n13: call(Dest=Target, R=5, Marker=205, Home=$Home, sub=1)
+
+done: debug_print(Print Value=999, cmt="all cases done")
+n15: exit()
+
+sub Measure(Dest, R, Marker, Home):
+n1: set_number(Value=Dest, Number=R, Result=$T, cmt="the range rides the target value's num")
+n2: domove(Target=$T)  >blocked (Path Blocked) >NEXT (next)
+n3: debug_print(Print Value=Marker)
+n4: get_distance(Target=$T, Distance=$D)
+n5: debug_print(Print Value=$D)
+n6: get_location(Coord=$Stop, cmt="Unit omitted = self")
+n7: debug_print(Print Value=$Stop)
+home: domove(Target=Home)  >POP (Path Blocked) >POP (next)
+blocked: debug_print(Print Value=888, cmt="path blocked -- case invalid")  >home (next)

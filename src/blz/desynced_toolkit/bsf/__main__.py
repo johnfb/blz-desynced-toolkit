@@ -1,0 +1,159 @@
+"""CLI for round-tripping a real .dcs clipboard string through BSF text -- see
+docs/behavior_source_format.md for the grammar. Meant to sit directly in a shell pipeline with the
+game's own clipboard, e.g. (with `cb` a wrapper script for `xclip -selection clipboard`):
+
+    cb -o | python -m blz.desynced_toolkit.bsf decompile > mybehavior.bsf
+    # ...edit mybehavior.bsf by hand...
+    python -m blz.desynced_toolkit.bsf compile < mybehavior.bsf | cb -i
+
+Only handles a top-level behavior/program clipboard item (.dcs type char 'C', the "Copy
+Program" action in the in-game editor) -- a blueprint ('B', with components/frames around it)
+decodes to a different table shape and is rejected with an error (decompile_dcs checks the
+type char); use LupaEngine.decode_dcs directly to inspect one.
+"""
+
+from __future__ import annotations
+
+import argparse
+import os
+import sys
+from pathlib import Path
+
+from blz.desynced_toolkit import LupaEngine, open_asset_source
+from blz.desynced_toolkit.bsf import (
+    ArgCache,
+    compile_dcs,
+    decompile_dcs,
+    lint_behavior,
+    parse_behavior,
+    render_behavior,
+    semantic_diff_dcs,
+)
+
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent
+DEFAULT_GAME_DATA_DIR = REPO_ROOT.parent / "desynced-game-data"
+
+
+def _make_engine(game_data: str | None) -> LupaEngine:
+    game_data_dir = game_data or os.environ.get("DESYNCED_GAME_DATA", str(DEFAULT_GAME_DATA_DIR))
+    if not os.path.exists(game_data_dir):
+        print(
+            f"error: game data extract not found at {game_data_dir}\n"
+            "(set --game-data or the DESYNCED_GAME_DATA env var)",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    return LupaEngine(open_asset_source(game_data_dir))
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(prog="python -m blz.desynced_toolkit.bsf")
+    parser.add_argument("--game-data", help="path to the game data extract (default: sibling desynced-game-data dir, or $DESYNCED_GAME_DATA)")
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    p_decompile = sub.add_parser("decompile", help="stdin: .dcs string -> stdout: BSF text")
+    p_decompile.add_argument("--input", type=argparse.FileType("r"), default=sys.stdin)
+    p_decompile.add_argument("--output", type=argparse.FileType("w"), default=sys.stdout)
+    p_decompile.add_argument(
+        "--annotate",
+        action="store_true",
+        help="add non-structural '#' comments: each instruction's in-game display name "
+        "(set_reg is displayed as 'Copy') and blank lines before label sections -- for "
+        "correlating BSF text with what the user sees in the visual editor",
+    )
+
+    p_compile = sub.add_parser("compile", help="stdin: BSF text -> stdout: .dcs string")
+    p_compile.add_argument("--input", type=argparse.FileType("r"), default=sys.stdin)
+    p_compile.add_argument("--output", type=argparse.FileType("w"), default=sys.stdout)
+    p_compile.add_argument("--type", default="C", help="wire type char to encode (default: C, a behavior/program)")
+
+    p_diff = sub.add_parser(
+        "semantic-diff",
+        help="two .dcs files -> stdout: human-readable diff, ignoring wire-position-only encoding differences",
+    )
+    p_diff.add_argument("old", type=argparse.FileType("r"), help="path to the earlier .dcs file")
+    p_diff.add_argument("new", type=argparse.FileType("r"), help="path to the later .dcs file")
+
+    p_ids = sub.add_parser(
+        "ids",
+        help="look up game ids by internal id or in-game display name (case-insensitive "
+        "substring), e.g. `ids radar` finds c_radar (\"Long-Range Radar\")",
+    )
+    p_ids.add_argument("query", help="substring to match against ids and display names")
+
+    p_lint = sub.add_parser(
+        "lint",
+        help="stdin: BSF text or .dcs string -> warnings for legal-but-suspicious constructs "
+        "(unreachable nodes, literal jumps with no matching label, undeclared parameter slots)",
+    )
+    p_lint.add_argument("--input", type=argparse.FileType("r"), default=sys.stdin)
+
+    args = parser.parse_args(argv)
+    engine = _make_engine(args.game_data)
+
+    if args.command == "decompile":
+        dcs_str = args.input.read().strip()
+        try:
+            behavior = decompile_dcs(engine, dcs_str)
+        except ValueError as e:
+            print(f"error: {e}", file=sys.stderr)
+            return 1
+        bsf_text = render_behavior(behavior, ArgCache(engine), annotate=args.annotate)
+        args.output.write(bsf_text)
+    elif args.command == "compile":
+        bsf_text = args.input.read()
+        argcache = ArgCache(engine)
+        try:
+            behavior = parse_behavior(bsf_text, argcache)
+        except SyntaxError as e:
+            print(f"error: {e}", file=sys.stderr)
+            return 1
+        # lint warnings on every compile (stderr, non-fatal): the compile step is the natural
+        # moment to catch a suspicious-but-legal construct before it reaches the game
+        for w in lint_behavior(behavior, argcache):
+            print(f"warning: {w}", file=sys.stderr)
+        dcs_str = compile_dcs(engine, behavior, args.type)
+        args.output.write(dcs_str)
+        args.output.write("\n")
+    elif args.command == "ids":
+        q = args.query.lower()
+        names = ArgCache(engine).id_display_names()
+        hits = sorted(
+            (id_, name)
+            for id_, name in names.items()
+            if q in id_.lower() or (name and q in name.lower())
+        )
+        for id_, name in hits:
+            print(f"{id_}\t{name or '(no display name)'}")
+        if not hits:
+            print(f"no ids matching {args.query!r}", file=sys.stderr)
+            return 1
+    elif args.command == "lint":
+        raw = args.input.read().strip()
+        argcache = ArgCache(engine)
+        try:
+            # autodetect: a .dcs string is one long token starting with "DS"; BSF text
+            # always contains a "behavior ...:" header line
+            if raw.startswith("DS") and "\n" not in raw and "(" not in raw:
+                behavior = decompile_dcs(engine, raw)
+            else:
+                behavior = parse_behavior(raw, argcache)
+        except (SyntaxError, ValueError) as e:
+            print(f"error: {e}", file=sys.stderr)
+            return 1
+        warnings = lint_behavior(behavior, argcache)
+        for w in warnings:
+            print(f"warning: {w}")
+        if not warnings:
+            print("clean: no warnings")
+    elif args.command == "semantic-diff":
+        old_dcs = args.old.read().strip()
+        new_dcs = args.new.read().strip()
+        report = semantic_diff_dcs(engine, old_dcs, new_dcs)
+        print(report if report else "(no semantic differences)")
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

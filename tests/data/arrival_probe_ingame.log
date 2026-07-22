@@ -1,0 +1,33 @@
+# In-game run of arrival_probe.dcs, captured 2026-07-20. Engineer (entity 270, f_bot_1s_b)
+# parked with 10+ open tiles to the east; Target parameter bound to a 3x3 Command Center
+# (entity 1309, f_landingpod; raw origin {45,-15}, so footprint x[45,47] y[-15,-13], center
+# {46,-14} which get_location returns). get_distance on the entity measures to the closest
+# footprint tile -- {45,-13} (the SW corner; home is west & south of the pod, +X=E +Y=S), which
+# is what gives the 1/2/5 readouts (a 2x2
+# would read 2 at the first stop, so the readouts themselves confirm the 3x3). Home tile
+# (get_location at start) = {37,-10}; coordinate target (10 east) = {47,-10}. Each case prints
+# three DEBUGPRINT records in order (note the run also re-shows get_distance-on-entity = closest
+# tile, not center: readout 1 at stop {44,-12} is the distance to corner {45,-13}, not to the
+# center {46,-14} which would read 2):
+#   <case marker>  <get_distance readout to the target>  <stop coordinate>
+# Markers: 100/102/105 = coordinate target at range 0/2/5; 200/202/205 = entity target (the pod)
+# at range 0/2/5; 999 = done. (No 888: no case was path-blocked.)
+[2026.07.20-11.46.43:089][386][DEBUGPRINT], <Register Num=100>
+[2026.07.20-11.46.43:089][386][DEBUGPRINT], <Register Entity=270,f_bot_1s_b,{47,-10} Num=0>
+[2026.07.20-11.46.43:089][386][DEBUGPRINT], <Register Coord=47,-10 Num=0>
+[2026.07.20-11.46.48:089][686][DEBUGPRINT], <Register Num=102>
+[2026.07.20-11.46.48:089][686][DEBUGPRINT], <Register Entity=270,f_bot_1s_b,{45,-10} Num=2>
+[2026.07.20-11.46.48:089][686][DEBUGPRINT], <Register Coord=45,-10 Num=0>
+[2026.07.20-11.46.51:889][914][DEBUGPRINT], <Register Num=105>
+[2026.07.20-11.46.51:889][914][DEBUGPRINT], <Register Entity=270,f_bot_1s_b,{42,-10} Num=5>
+[2026.07.20-11.46.51:889][914][DEBUGPRINT], <Register Coord=42,-10 Num=0>
+[2026.07.20-11.46.55:688][142][DEBUGPRINT], <Register Num=200>
+[2026.07.20-11.46.55:689][142][DEBUGPRINT], <Register Entity=1309,f_landingpod,{45,-15} Num=1>
+[2026.07.20-11.46.55:689][142][DEBUGPRINT], <Register Coord=44,-12 Num=0>
+[2026.07.20-11.46.59:889][394][DEBUGPRINT], <Register Num=202>
+[2026.07.20-11.46.59:889][394][DEBUGPRINT], <Register Entity=1309,f_landingpod,{45,-15} Num=2>
+[2026.07.20-11.46.59:889][394][DEBUGPRINT], <Register Coord=43,-11 Num=0>
+[2026.07.20-11.47.02:888][574][DEBUGPRINT], <Register Num=205>
+[2026.07.20-11.47.02:888][574][DEBUGPRINT], <Register Entity=1309,f_landingpod,{45,-15} Num=5>
+[2026.07.20-11.47.02:888][574][DEBUGPRINT], <Register Coord=40,-10 Num=0>
+[2026.07.20-11.47.03:888][634][DEBUGPRINT], <Register Num=999>

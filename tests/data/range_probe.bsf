@@ -1,0 +1,22 @@
+# Range-gate metric probe (see conversation 2026-07-19 / docs/mock_world_spec.md distance-metrics item).
+# Park this unit, place ONE probe target (matched by the Probe filter parameter) at an exact tile
+# offset, run once. It sweeps Range = 1..15 on "Loop Units (Range)" and reports the SMALLEST Range
+# that detects the target:
+#   @signal num = minimal detecting Range (empty = never found within 15)
+#   @store  num = get_distance readout to the found target (for the same placement, free extra data)
+behavior RangeProbe(Probe):
+  desc: "Range-gate metric probe: sweeps Loop Units (Range) with Range=1..15 for the Probe filter; writes the smallest detecting Range to @signal (empty = not found) and the get_distance readout to @store, then exits. Place one probe target at an exact offset and read both numbers."
+
+n1: unlock()
+n2: set_reg(Target=$MinR, cmt="clear result")
+n3: set_reg(Target=$Found)
+n4: for_number(From=1, To=15, Value=$R)  >n10 (Done) >NEXT (next)
+n5:   for_entities_in_range(Range=$R, Filter=Probe, Unit=$U)  >n8 (Done) >NEXT (next)
+n6:     set_reg(Value=$R, Target=$MinR)
+n7:     set_reg(Value=$U, Target=$Found)  >POP (next)
+n8:   is_empty(Value=$MinR)  >POP (Empty) >n9 (Has Value)
+n9:   last(cmt="found at this R -- stop sweeping")
+n10: set_reg(Value=$MinR, Target=@signal)
+n11: get_distance(Target=$Found, Distance=$D)
+n12: set_reg(Value=$D, Target=@store)
+n13: exit()

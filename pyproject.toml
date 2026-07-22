@@ -1,0 +1,23 @@
+[project]
+name = "blz-desynced-toolkit"
+version = "0.1.0"
+description = "Compiler/decompiler and lupa-backed runtime for Desynced behavior .dcs files"
+authors = [
+    { name = "John Bridgman", email = "johnfbiii@gmail.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "lupa>=2.8",
+]
+
+[build-system]
+requires = ["uv_build>=0.11.26,<0.12.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "blz.desynced_toolkit"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
