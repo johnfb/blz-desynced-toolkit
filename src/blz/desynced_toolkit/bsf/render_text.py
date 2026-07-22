@@ -273,7 +273,12 @@ def _annotation_parts(node: BsfNode, argcache: ArgCache) -> list[str]:
 
 
 def _render_into(
-    b: BsfBehavior, lines: list[str], keyword: str, argcache: ArgCache, annotate: bool = False
+    b: BsfBehavior,
+    lines: list[str],
+    keyword: str,
+    argcache: ArgCache,
+    annotate: bool = False,
+    sub_refs: dict[str, str] | None = None,
 ) -> None:
     # docs/behavior_source_format.md's `param := NAME` has no room for a parameter's direction at
     # all -- another real gap (see render_hidden_value's docstring for the sibling one).
@@ -323,14 +328,32 @@ def _render_into(
         lines.append(line)
     for sub in b.subs:
         lines.append("")
-        _render_into(sub, lines, keyword="sub", argcache=argcache, annotate=annotate)
+        if sub_refs is not None and sub.name in sub_refs:
+            # bsf/library.py's by-name library store: this sub lives in its own file: emit a
+            # reference line instead of recursing into its body (matches _SUB_REF_RE, no parens/
+            # colon so a plain text scan can't mistake it for an inline header).
+            lines.append(f'sub {sub.name} from "{sub_refs[sub.name]}"')
+        else:
+            _render_into(
+                sub, lines, keyword="sub", argcache=argcache, annotate=annotate, sub_refs=sub_refs
+            )
 
 
-def render_behavior(b: BsfBehavior, argcache: ArgCache, annotate: bool = False) -> str:
+def render_behavior(
+    b: BsfBehavior,
+    argcache: ArgCache,
+    annotate: bool = False,
+    sub_refs: dict[str, str] | None = None,
+) -> str:
     """`annotate=True` adds non-structural `#` comments for human correlation with the in-game
     editor: each instruction's visual display name where it differs from the op id, and a blank
     line before each label section. Annotated output parses identically (comments are
-    stripped); the default render never emits comments, keeping diffs stable."""
+    stripped); the default render never emits comments, keeping diffs stable.
+
+    `sub_refs`: {sub name: relative path} for subs stored in their own file (bsf/library.py) --
+    applied at every nesting level (a name reused anywhere is assumed to be the same shared sub,
+    matching semantic_diff_behaviors' own by-name sub matching). Omit for a fully self-contained
+    render (the default -- every existing caller keeps embedding every sub inline)."""
     lines: list[str] = []
-    _render_into(b, lines, keyword="behavior", argcache=argcache, annotate=annotate)
+    _render_into(b, lines, keyword="behavior", argcache=argcache, annotate=annotate, sub_refs=sub_refs)
     return "\n".join(lines)

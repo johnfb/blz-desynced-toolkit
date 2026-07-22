@@ -26,6 +26,8 @@ from blz.desynced_toolkit.bsf import (
     ArgCache,
     compile_dcs,
     decompile_dcs,
+    export_dcs,
+    import_dcs,
     lint_behavior,
     parse_behavior,
     render_behavior,
@@ -95,6 +97,28 @@ def main(argv: list[str] | None = None) -> int:
     )
     p_ids.add_argument("query", help="substring to match against ids and display names")
 
+    p_import = sub.add_parser(
+        "import",
+        help="stdin: .dcs string -> writes/updates BSF files under a library directory, "
+        "splitting embedded sub-behaviors out into their own referenceable files",
+    )
+    p_import.add_argument("library_dir", type=Path, help="library directory (created if missing)")
+    p_import.add_argument("--input", type=argparse.FileType("r"), default=sys.stdin)
+    p_import.add_argument(
+        "--name",
+        help="output filename stem for the top-level behavior (default: derived from its "
+        "declared name)",
+    )
+
+    p_export = sub.add_parser(
+        "export",
+        help="library directory + behavior name -> stdout: .dcs string, resolving 'from' "
+        "sub-references back into an embedded dependencies array",
+    )
+    p_export.add_argument("library_dir", type=Path, help="library directory")
+    p_export.add_argument("name", help="behavior filename stem (without .bsf) to export")
+    p_export.add_argument("--output", type=argparse.FileType("w"), default=sys.stdout)
+
     p_lint = sub.add_parser(
         "lint",
         help="stdin: BSF text or .dcs string -> warnings for legal-but-suspicious constructs "
@@ -127,6 +151,38 @@ def main(argv: list[str] | None = None) -> int:
         for w in lint_behavior(behavior, argcache):
             print(f"warning: {w}", file=sys.stderr)
         dcs_str = compile_dcs(engine, behavior, args.type)
+        args.output.write(dcs_str)
+        args.output.write("\n")
+    elif args.command == "import":
+        dcs_str = args.input.read().strip()
+        argcache = ArgCache(engine)
+        try:
+            report = import_dcs(engine, dcs_str, args.library_dir, argcache, name=args.name)
+        except ValueError as e:
+            print(f"error: {e}", file=sys.stderr)
+            return 1
+        for p in report.written:
+            print(f"created {p}")
+        for p in report.updated:
+            print(f"updated {p}")
+            if p in report.diffs:
+                print(report.diffs[p])
+        for p in report.unchanged:
+            print(f"unchanged {p}")
+        for sub_path, callers in report.stale_callers.items():
+            for c in callers:
+                print(
+                    f"warning: {c} references {sub_path.name}, which just changed -- "
+                    f"it may need a fresh re-import of its own to pick that up",
+                    file=sys.stderr,
+                )
+    elif args.command == "export":
+        argcache = ArgCache(engine)
+        try:
+            dcs_str = export_dcs(args.library_dir, args.name, engine, argcache)
+        except (FileNotFoundError, SyntaxError) as e:
+            print(f"error: {e}", file=sys.stderr)
+            return 1
         args.output.write(dcs_str)
         args.output.write("\n")
     elif args.command == "ids":
@@ -163,8 +219,8 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "semantic-diff":
         old_dcs = args.old.read().strip()
         new_dcs = args.new.read().strip()
-        report = semantic_diff_dcs(engine, old_dcs, new_dcs)
-        print(report if report else "(no semantic differences)")
+        diff = semantic_diff_dcs(engine, old_dcs, new_dcs)
+        print(diff if diff else "(no semantic differences)")
 
     return 0
 

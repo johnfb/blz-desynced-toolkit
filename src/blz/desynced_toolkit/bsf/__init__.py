@@ -8,6 +8,7 @@ from .argcache import ArgCache
 from .compile import compile_behavior, compile_dcs
 from .decompile import decompile_behavior, decompile_dcs
 from .ir import BsfBehavior, BsfNode, BsfParam
+from .library import ImportReport, export_dcs, import_dcs
 from .lint import lint_behavior
 from .parse_text import parse_behavior
 from .render_mermaid import render_mermaid
@@ -18,10 +19,13 @@ __all__ = [
     "BsfBehavior",
     "BsfNode",
     "BsfParam",
+    "ImportReport",
     "compile_behavior",
     "compile_dcs",
     "decompile_behavior",
     "decompile_dcs",
+    "export_dcs",
+    "import_dcs",
     "parse_behavior",
     "render_behavior",
     "render_mermaid",

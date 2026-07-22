@@ -660,6 +660,55 @@ own independent `NODE_ID` namespace (matching how the real table addresses
 it as a separate array — a `call` target's node IDs are only ever meaningful
 within that specific sub-behavior's own graph, never the caller's).
 
+### Sub-behaviors by reference (`bsf/library.py`)
+
+A `.dcs` clipboard export always bundles every sub-behavior it calls as a
+full, disconnected copy — there is no way to ask the game to export "this
+behavior, plus a pointer to that other saved one." In-game, though, a saved
+library sub-behavior genuinely is shared by reference: editing it updates
+and restarts every caller, with no per-caller action. `bsf/library.py`'s
+on-disk store (a directory of `.bsf` files, one per named behavior — see
+its own module docstring for the full import/export contract) reproduces
+that sharing locally by using the sub's declared `name` as the join key
+across files, since that's the only stable identity the format has (the
+real saved-library id is a game-assigned string never present in a plain
+clipboard export — see "`call` / sub-behaviors" above).
+
+A sub stored in its own file is referenced with no parens, params, or
+trailing colon — deliberately a different line shape from an inline `sub
+NAME(...):` header so a plain text scan can't confuse the two:
+
+```
+sub Async Radar Set from "async-radar-set.bsf"
+```
+
+The path is relative to the file containing the reference. Resolving one
+requires a base directory — `parse_behavior(text, argcache, base_dir=...)`
+— since plain BSF text carries no notion of its own location; omitting
+`base_dir` while parsing text that contains a reference is an error.
+References can chain (a referenced file's own subs can themselves be
+references, resolved against *its* directory, not the original caller's),
+with a cycle raising rather than recursing forever. A reference's stated
+name must match the target file's own declared name — a mismatch means the
+reference is stale (the target was renamed, or the reference was copied to
+point at the wrong file) and is rejected rather than silently resolved
+against the wrong content.
+
+Only the parse/render text layer knows about references at all —
+`compile.py` never does. By the time a `parse_behavior` call returns, every
+referenced sub has already been substituted with a fully resolved
+`BsfBehavior`, identical in shape to one that arrived embedded in a real
+`.dcs` bundle; `bsf/library.py`'s `export_dcs` is nothing more than
+`parse_behavior` (to join) followed by the ordinary `compile_dcs` (unchanged).
+The reverse direction, `import_dcs`, decompiles a real `.dcs` export and
+recursively writes every embedded sub out to its own `<slug-of-name>.bsf`
+file (only the top-level file's own name is caller-chosen; every sub's
+filename is derived from its `name`), replacing the inline copy with a
+reference. Re-importing a caller whose shared sub was edited in-game updates
+that one sub file — visible as a semantic diff, not a silent overwrite — and
+flags (but does not attempt to fix) any *other* library file whose own
+reference now points at content that just changed underneath it.
+
 ## Common idioms
 
 Patterns confirmed independently in two real, unrelated user-authored

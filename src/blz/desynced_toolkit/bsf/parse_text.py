@@ -47,6 +47,7 @@ from __future__ import annotations
 
 import difflib
 import re
+from pathlib import Path
 
 from .argcache import DYNAMIC_ARG_OPS, ArgCache
 from .decompile import HIDDEN_FIELD_TABLE
@@ -78,6 +79,11 @@ def _suggest(name: str, candidates) -> str:
 _NUM_RE = re.compile(r"^-?\d+(\.\d+)?$")
 _SLOT_UNDECLARED_RE = re.compile(r"^slot(\d+)\(undeclared\)$")
 _HEADER_RE = re.compile(r"^(behavior|sub)\s+(.+)\((.*)\):\s*$")
+# A sub-behavior stored in its own file instead of embedded inline (bsf/library.py's by-name
+# library store) -- no parens/params/colon, just a name and a quoted relative path. Deliberately
+# a distinct line shape from `_HEADER_RE` (no trailing `:`) so a plain text scan can tell inline
+# from referenced without attempting a header parse first.
+_SUB_REF_RE = re.compile(r'^sub\s+(.+?)\s+from\s+"(.*)"\s*$')
 _DESC_RE = re.compile(r'^desc:\s*"(.*)"\s*$')
 _KEEPVARS_RE = re.compile(r"^keepvars:\s*true\s*$")
 _KEEPARRAYS_RE = re.compile(r'^keeparrays:\s*"(startup|store)"\s*$')
@@ -783,7 +789,34 @@ def _parse_one(
     ), i
 
 
-def parse_behavior(text: str, argcache: ArgCache) -> BsfBehavior:
+def _resolve_sub_ref(
+    name: str, rel_path: str, argcache: ArgCache, base_dir: Path | None, visited: frozenset[Path]
+) -> BsfBehavior:
+    if base_dir is None:
+        raise BsfParseError(
+            f"sub {name!r} references file {rel_path!r}, but this text has no base directory to "
+            f"resolve it against -- parse from a real file path (or pass base_dir explicitly), "
+            f"e.g. via bsf/library.py's import/export"
+        )
+    target = (base_dir / rel_path).resolve()
+    if target in visited:
+        raise BsfParseError(f"circular sub reference: {rel_path!r} (via {name!r})")
+    if not target.exists():
+        raise BsfParseError(f"sub {name!r} references file {rel_path!r}, which doesn't exist ({target})")
+    resolved = _parse_behavior_impl(
+        target.read_text(), argcache, base_dir=target.parent, visited=visited | {target}
+    )
+    if resolved.name != name:
+        raise BsfParseError(
+            f"sub reference declares {name!r} but {rel_path!r} defines {resolved.name!r} -- "
+            f"the reference is stale, update the name or the path"
+        )
+    return resolved
+
+
+def _parse_behavior_impl(
+    text: str, argcache: ArgCache, base_dir: Path | None, visited: frozenset[Path]
+) -> BsfBehavior:
     lines = text.split("\n")
     i = 0
     while i < len(lines) and (lines[i].strip() == "" or lines[i].strip().startswith("#")):
@@ -798,7 +831,21 @@ def parse_behavior(text: str, argcache: ArgCache) -> BsfBehavior:
             i += 1
         if i >= len(lines):
             break
+        ref = _SUB_REF_RE.match(lines[i].strip())
+        if ref:
+            subs.append(_resolve_sub_ref(ref.group(1), ref.group(2), argcache, base_dir, visited))
+            i += 1
+            continue
         sub, i = _parse_one(lines, i, keyword="sub", argcache=argcache)
         subs.append(sub)
     behavior.subs = subs
     return behavior
+
+
+def parse_behavior(text: str, argcache: ArgCache, base_dir: Path | str | None = None) -> BsfBehavior:
+    """base_dir: directory a `sub NAME from "path"` reference resolves relative paths against
+    (bsf/library.py's by-name library store, docs/behavior_source_format.md's "Sub-behaviors by
+    reference" section). Omit for text with no such references -- it's an error to encounter one
+    without a base_dir."""
+    resolved_base = Path(base_dir) if base_dir is not None else None
+    return _parse_behavior_impl(text, argcache, base_dir=resolved_base, visited=frozenset())

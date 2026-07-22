@@ -57,6 +57,12 @@ desynced-bsf lint < mybehavior.bsf
 
 # look up an internal game id <-> in-game display name
 desynced-bsf ids radar
+
+# on-disk library store: decompile + split embedded subs into their own referenceable files
+desynced-bsf import mylibrary/ < mybehavior.dcs
+
+# ...and the reverse: resolve references back into an embedded dependencies array, and compile
+desynced-bsf export mylibrary/ mybehavior > mybehavior.dcs
 ```
 
 Add `--annotate` to `decompile` to inline `#` comments with in-game display names for correlating BSF text against the visual editor.

@@ -402,6 +402,12 @@ def test_cli_subcommands_smoke(engine, tmp_path):
     assert main(gd + ["semantic-diff", str(src), str(dcs_out)]) == 0
     assert main(gd + ["ids", "radar"]) == 0
 
+    library_dir = tmp_path / "library"
+    assert main(gd + ["import", str(library_dir), "--input", str(src)]) == 0
+    behavior_files = list(library_dir.glob("*.bsf"))
+    assert len(behavior_files) == 1
+    assert main(gd + ["export", str(library_dir), behavior_files[0].stem]) == 0
+
 
 def test_lint_flags_constant_jump_with_dead_next_edge(engine, argcache):
     from blz.desynced_toolkit.bsf.lint import lint_behavior
