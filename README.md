@@ -14,11 +14,11 @@ Everything past the wire-bytes layer works with real Lua tables (1-based, via `l
 
 ## Why this exists
 
-Hand-reimplementing Desynced's instruction semantics in Python was the source of most bugs found while building this — subtle register/composite-value rules, branch encoding, block-stack behavior, and so on are easy to misread from Lua source alone and easy to get wrong by hand. Running the real game Lua through `lupa` sidesteps that: the runtime's decisions are the game's own, not a re-derivation of them.
+The goal is to let outside tools — including LLM coding agents — read and edit Desynced behaviors directly, the way they would work with source code. Desynced's own clipboard copy/paste is the only externally-exposed read/write channel for behaviors and requires no game-side mod, so reading and writing its `.dcs` wire format directly is the most direct path to that goal.
 
 The BSF text format exists because Desynced behaviors are genuine graphs — arbitrary-fan-in control edges, arbitrary-fan-out data edges, confirmed against real user behaviors — and a tree-structured pseudocode representation (tried first, later abandoned) is a lossy fit for that.
 
-The end goal this package is instrumental to: editing a real, live Desynced behavior as ordinary text — read it out of the game's clipboard, edit it like source code, write it back — rather than only through the in-game visual editor.
+Hand-reimplementing Desynced's instruction semantics in Python was the source of most bugs found while building this — subtle register/composite-value rules, branch encoding, block-stack behavior, and so on are easy to misread from Lua source alone and easy to get wrong by hand. Running the real game Lua through `lupa` sidesteps that: the runtime's decisions are the game's own, not a re-derivation of them.
 
 ## Requirements
 
