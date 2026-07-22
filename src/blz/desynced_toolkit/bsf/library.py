@@ -118,10 +118,13 @@ def import_dcs(
     text = render_behavior(behavior, argcache, sub_refs=sub_refs)
     _write_if_changed(out_path, text, argcache, library_dir, report)
 
+    # Check every updated path, including out_path itself: a behavior imported here as the
+    # top-level target can *also* be referenced as a sub elsewhere (e.g. "Async Radar Set" is
+    # both its own standalone library entry and a shared sub of Observer/Mining Leader) --
+    # skipping out_path would silently miss exactly that case. `exclude` still keeps a file from
+    # flagging itself or a sibling written in this same import as "stale".
     written_this_import = set(report.written) | {out_path}
     for updated_path in report.updated:
-        if updated_path == out_path:
-            continue
         callers = _find_stale_callers(library_dir, updated_path, exclude=written_this_import)
         if callers:
             report.stale_callers[updated_path] = callers

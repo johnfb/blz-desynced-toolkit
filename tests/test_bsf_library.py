@@ -8,6 +8,7 @@ import pytest
 
 from blz.desynced_toolkit.bsf import (
     ImportReport,
+    compile_dcs,
     export_dcs,
     import_dcs,
     semantic_diff_dcs,
@@ -109,6 +110,31 @@ def test_reimport_with_edited_shared_sub_updates_and_flags_stale_caller(engine, 
     assert tmp_path / "shared.bsf" in report.updated
     assert (tmp_path / "shared.bsf") in report.diffs
     assert report.stale_callers.get(tmp_path / "shared.bsf") == [tmp_path / "caller-a.bsf"]
+
+
+def test_reimporting_a_standalone_behavior_flags_callers_that_reference_it(
+    engine, argcache, tmp_path
+):
+    """Regression: found reconstructing a real library (Async Radar Set/Get are each imported
+    standalone -- they're independently useful to inspect -- *and* embedded as a sub of Observer/
+    Mining Leader). An earlier version only checked report.updated paths other than the just-
+    imported top-level file itself, on the assumption a top-level import target is never also
+    someone else's sub reference -- true in general, false for exactly this shape."""
+    caller = _behavior_with_sub(1)
+    caller.name = "Caller"
+    shared_v1 = caller.subs[0]
+
+    import_dcs(engine, compile_dcs(engine, shared_v1, "C"), tmp_path, argcache, name="shared")
+    report_caller = import_dcs(
+        engine, compile_dcs(engine, caller, "C"), tmp_path, argcache, name="caller"
+    )
+    assert tmp_path / "shared.bsf" in report_caller.unchanged
+
+    shared_v2 = _behavior_with_sub(2).subs[0]
+    report = import_dcs(engine, compile_dcs(engine, shared_v2, "C"), tmp_path, argcache, name="shared")
+
+    assert tmp_path / "shared.bsf" in report.updated
+    assert report.stale_callers.get(tmp_path / "shared.bsf") == [tmp_path / "caller.bsf"]
 
 
 def test_export_missing_behavior_raises(engine, argcache, tmp_path):
