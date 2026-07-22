@@ -100,7 +100,9 @@ def _diff_nodes(old: BsfBehavior, new: BsfBehavior, argcache: ArgCache) -> list[
             for k in range(n):
                 oid, nid = old_order[i1 + k], new_order[j1 + k]
                 old_to_new[oid] = nid
-                diffs.append(NodeDiff("changed", oid, nid, f"{old_sigs[i1 + k]!r} -> {new_sigs[j1 + k]!r}"))
+                diffs.append(
+                    NodeDiff("changed", oid, nid, f"{old_sigs[i1 + k]!r} -> {new_sigs[j1 + k]!r}")
+                )
             for k in range(n, i2 - i1):
                 diffs.append(NodeDiff("removed", old_order[i1 + k], None, old_sigs[i1 + k]))
             for k in range(n, j2 - j1):
@@ -120,19 +122,27 @@ def _diff_nodes(old: BsfBehavior, new: BsfBehavior, argcache: ArgCache) -> list[
             otarget = _resolve_pin_target(oid, pin, onode, old.order)
             ntarget = _resolve_pin_target(nid, pin, nnode, new.order)
             if (otarget is None) != (ntarget is None):
-                diffs.append(NodeDiff(
-                    "branch_changed", oid, nid,
-                    f"pin {pin!r}: {'POP' if otarget is None else otarget} -> "
-                    f"{'POP' if ntarget is None else ntarget}",
-                ))
+                diffs.append(
+                    NodeDiff(
+                        "branch_changed",
+                        oid,
+                        nid,
+                        f"pin {pin!r}: {'POP' if otarget is None else otarget} -> "
+                        f"{'POP' if ntarget is None else ntarget}",
+                    )
+                )
             elif otarget is not None and ntarget is not None:
                 expected_new = old_to_new.get(otarget)
                 if expected_new != ntarget:
-                    diffs.append(NodeDiff(
-                        "branch_changed", oid, nid,
-                        f"pin {pin!r} now resolves to a different node "
-                        f"(expected the match of {otarget!r}, got {ntarget!r})",
-                    ))
+                    diffs.append(
+                        NodeDiff(
+                            "branch_changed",
+                            oid,
+                            nid,
+                            f"pin {pin!r} now resolves to a different node "
+                            f"(expected the match of {otarget!r}, got {ntarget!r})",
+                        )
+                    )
     return diffs
 
 
@@ -153,7 +163,9 @@ def _diff_meta(old: BsfBehavior, new: BsfBehavior) -> list[str]:
     return lines
 
 
-def _format_behavior_diff(label: str, old: BsfBehavior, new: BsfBehavior, argcache: ArgCache) -> list[str]:
+def _format_behavior_diff(
+    label: str, old: BsfBehavior, new: BsfBehavior, argcache: ArgCache
+) -> list[str]:
     out: list[str] = []
     meta = _diff_meta(old, new)
     node_diffs = _diff_nodes(old, new, argcache)
@@ -169,9 +181,7 @@ def _format_behavior_diff(label: str, old: BsfBehavior, new: BsfBehavior, argcac
             out.append(f"  + [{d.new_id}] {d.detail}")
         elif d.kind == "removed":
             out.append(f"  - [{d.old_id}] {d.detail}")
-        elif d.kind == "changed":
-            out.append(f"  ~ [{d.old_id} -> {d.new_id}] {d.detail}")
-        elif d.kind == "branch_changed":
+        elif d.kind == "changed" or d.kind == "branch_changed":
             out.append(f"  ~ [{d.old_id} -> {d.new_id}] {d.detail}")
     return out
 
@@ -195,10 +205,9 @@ def semantic_diff_behaviors(old: BsfBehavior, new: BsfBehavior, argcache: ArgCac
                 old_sub = cand
                 used_old.add(id(cand))
                 break
-        if old_sub is None:
-            if new_idx < len(old.subs) and id(old.subs[new_idx]) not in used_old:
-                old_sub = old.subs[new_idx]
-                used_old.add(id(old_sub))
+        if old_sub is None and new_idx < len(old.subs) and id(old.subs[new_idx]) not in used_old:
+            old_sub = old.subs[new_idx]
+            used_old.add(id(old_sub))
         if old_sub is None:
             sections.append(f"=== sub {new_sub.name!r} ===\n  + entire sub-behavior added")
             continue

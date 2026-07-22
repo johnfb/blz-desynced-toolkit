@@ -55,9 +55,7 @@ class ZipSource:
     def _detect_common_prefix(names: list[str]) -> str:
         top_dirs = {n.split("/", 1)[0] for n in names if "/" in n}
         # a single shared top-level directory covering every entry -> strip it
-        if len(top_dirs) == 1 and all(
-            n.startswith(next(iter(top_dirs)) + "/") for n in names
-        ):
+        if len(top_dirs) == 1 and all(n.startswith(next(iter(top_dirs)) + "/") for n in names):
             return next(iter(top_dirs)) + "/"
         return ""
 

@@ -31,9 +31,8 @@ class DebugPrint:
     eid: int | None
     value: object
 
-_WORLD_LUA = (
-    resources.files(__package__).joinpath("world.lua").read_text(encoding="utf-8")
-)
+
+_WORLD_LUA = resources.files(__package__).joinpath("world.lua").read_text(encoding="utf-8")
 
 
 class MockWorld:

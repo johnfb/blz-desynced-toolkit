@@ -29,8 +29,6 @@ Correspondence achieved (and its measured residue):
 import re
 from pathlib import Path
 
-import pytest
-
 from blz.desynced_toolkit import MockWorld
 
 DATA_DIR = Path(__file__).parent / "data"
@@ -126,7 +124,7 @@ def test_movement_circuit_matches_ingame_log(engine):
     real_by_coord = dict(real)
     mock_by_coord = dict(mock)
     boundaries = [START] + corners
-    for a, b in zip(boundaries, boundaries[1:]):
+    for a, b in zip(boundaries, boundaries[1:], strict=False):  # pairwise: lengths differ by design
         if a == START:
             continue  # leg 1 starts at the contaminated log head
         real_leg = real_by_coord[b] - real_by_coord[a]

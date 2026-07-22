@@ -28,7 +28,8 @@ def _forward_reachable(b: BsfBehavior, argcache: ArgCache, roots: set[str]) -> s
         seen.add(node_id)
         node = b.nodes[node_id]
         targets = [
-            _resolve_pin_target(node_id, pin, node, b.order) for pin in _declared_pins(node, argcache)
+            _resolve_pin_target(node_id, pin, node, b.order)
+            for pin in _declared_pins(node, argcache)
         ]
         if node_id in jump_targets:
             targets.append(jump_targets[node_id])
@@ -48,7 +49,11 @@ def _lint_one(b: BsfBehavior, argcache: ArgCache, prefix: str, warnings: list[st
 
     def ref(nid: str) -> str:
         node = b.nodes[nid]
-        return f"node {nid!r}" if node.id_explicit else f"the {node.op}() at listing position {_pos[nid]}"
+        return (
+            f"node {nid!r}"
+            if node.id_explicit
+            else f"the {node.op}() at listing position {_pos[nid]}"
+        )
 
     if b.order:
         # Roots: Program Start plus every label -- a label is reachable through computed
@@ -75,7 +80,9 @@ def _lint_one(b: BsfBehavior, argcache: ArgCache, prefix: str, warnings: list[st
         if not isinstance(v, (IdLit, Num)):
             continue  # computed dispatch -- genuinely unresolvable statically, not suspicious
         if _literal_key(v) not in label_keys:
-            warn(f"{ref(n.id)} jumps to a literal label with no matching label node in this behavior")
+            warn(
+                f"{ref(n.id)} jumps to a literal label with no matching label node in this behavior"
+            )
 
     # A constant-Label jump always dispatches to its label -- its top-level `next` can never
     # fire, so a wired/fallthrough `next` there is a dead edge cluttering the visual editor
@@ -84,8 +91,8 @@ def _lint_one(b: BsfBehavior, argcache: ArgCache, prefix: str, warnings: list[st
     for n in b.nodes.values():
         if n.op != "jump":
             continue
-        v = n.args.get("Label")
-        if not isinstance(v, (IdLit, Num)):
+        label_val = n.args.get("Label")
+        if not isinstance(label_val, (IdLit, Num)):
             continue
         if _resolve_pin_target(n.id, "next", n, b.order) is not None:
             warn(

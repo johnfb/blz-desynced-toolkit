@@ -242,7 +242,7 @@ def push_int_packed(out, v):
 # --- Decode: builds genuine Lua tables (1-based), given a lupa.LuaRuntime ---
 
 
-def decode_dcs(lua: "lupa.LuaRuntime", s: str):
+def decode_dcs(lua: lupa.LuaRuntime, s: str):
     data = [ord(c) for c in s]
     idx, end = 0, len(data)
     while idx < end and B62[data[idx]] == 255:
@@ -264,7 +264,7 @@ def decode_dcs(lua: "lupa.LuaRuntime", s: str):
     return type_char, parse_msgpack(buf, lua)
 
 
-def parse_msgpack(buf, lua: "lupa.LuaRuntime"):
+def parse_msgpack(buf, lua: lupa.LuaRuntime):
     p = [0]
 
     def read(n):
@@ -293,9 +293,7 @@ def parse_msgpack(buf, lua: "lupa.LuaRuntime"):
                 if not (vacancy_bits & mask):
                     val = parse()
                     if i < size_array:
-                        t[i + 1] = (
-                            val  # genuine 1-based Lua array index, no shift needed
-                        )
+                        t[i + 1] = val  # genuine 1-based Lua array index, no shift needed
                     else:
                         if buf[p[0]] == MP_DESYNCED_DEADKEY:
                             p[0] += 1
@@ -496,7 +494,7 @@ def _serialize_table(out, v):
         if not (isinstance(k, int) and not isinstance(k, bool) and 1 <= k <= size_array)
     ]
 
-    if map_keys:
+    if map_keys:  # noqa: SIM108 -- collapsing to a ternary buries the bit-twiddling further
         sz = (len(bin(map_keys - 1)[2:]) << 1) | (1 if size_array else 0)
     else:
         sz = size_array
@@ -539,9 +537,7 @@ def _serialize_table(out, v):
                     serialize(out, v[key])
                     # the wire stores the real Lua key directly -- no shift
                     serialize(out, key, is_table_key=True)
-                    out.append(
-                        0
-                    )  # Lua table memory-layout hint; unused by any decoder here
+                    out.append(0)  # Lua table memory-layout hint; unused by any decoder here
 
 
 def encode_dcs(type_char, obj):

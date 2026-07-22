@@ -16,7 +16,6 @@ import lupa.lua54 as lupa
 from . import dcs_wire
 from .assets import AssetSource, get_package_manifest, resolve_include
 
-
 # The minimal `data/data.lua` include subset whose load populates `data.frames`/`data.components`/
 # `data.items`/`data.values` -- everything `FilterEntity`/`PrepareFilterEntity` and the mock world
 # need. Determined empirically (docs/mock_world_spec.md Phase 0): these load cleanly under the stub in
@@ -52,11 +51,7 @@ class LupaEngine:
         self.source = source
         self.package_id = package_id
         self.lua = lupa.LuaRuntime(unpack_returned_tuples=True)
-        stub = (
-            resources.files(__package__)
-            .joinpath("engine_stub.lua")
-            .read_text(encoding="utf-8")
-        )
+        stub = resources.files(__package__).joinpath("engine_stub.lua").read_text(encoding="utf-8")
         self.lua.execute(stub)
 
         pm = get_package_manifest(source, package_id)
@@ -116,14 +111,13 @@ class LupaEngine:
         (`f_`/`c_`/`v_`/item names), so there are no cross-registry collisions."""
         self.lua.execute(
             """
-            for _, name in ipairs({ "%s" }) do
+            for _, name in ipairs({{ "{}" }}) do
               for id, def in pairs(data[name]) do
                 def.data_name = name
                 data.all[id] = def
               end
             end
-            """
-            % '", "'.join(DATA_ALL_REGISTRIES)
+            """.format('", "'.join(DATA_ALL_REGISTRIES))
         )
 
     def decode_dcs(self, s: str):
@@ -142,9 +136,7 @@ class LupaEngine:
     def new_comp(self):
         return self._new_comp()
 
-    def new_value(
-        self, num: int = 0, coord: tuple[int, int] | None = None, id_: str | None = None
-    ):
+    def new_value(self, num: int = 0, coord: tuple[int, int] | None = None, id_: str | None = None):
         lua_coord = self._table(x=coord[0], y=coord[1]) if coord is not None else None
         return self._new_value(num, lua_coord, id_)
 

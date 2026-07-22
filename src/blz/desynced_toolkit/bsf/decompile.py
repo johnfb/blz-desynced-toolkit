@@ -37,8 +37,9 @@ HIDDEN_FIELD_TABLE = {
     "set_signpost": "txt",
 }
 
+
 def _int_keys(table) -> list[int]:
-    return sorted(k for k in table.keys() if isinstance(k, int))
+    return sorted(k for k in table if isinstance(k, int))
 
 
 def _sub_behaviors_table(table):
@@ -237,7 +238,9 @@ def decompile_behavior(engine, table, argcache: ArgCache | None = None) -> BsfBe
                     node.args[pin] = from_lua(inst[i])
 
         next_target = resolve_branch(inst["next"] if "next" in inst_keys else None, idx, insts)
-        node.branches["next"] = idx_to_id[next_target] if isinstance(next_target, int) else next_target
+        node.branches["next"] = (
+            idx_to_id[next_target] if isinstance(next_target, int) else next_target
+        )
 
         hidden_field = HIDDEN_FIELD_TABLE.get(op)
         if hidden_field is not None and hidden_field in inst_keys:

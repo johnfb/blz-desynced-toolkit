@@ -21,7 +21,9 @@ def _compare_number_demo():
     # "next" (If Equal) left as a plain implicit fallthrough -- C is physically next.
     c = BsfNode(id="C", op="set_reg", args={"Value": Num(2), "Target": Var("x")})
     b = BsfNode(id="B", op="set_reg", args={"Value": Num(1), "Target": Var("x")})
-    return BsfBehavior(name="CompareNumberDemo", nodes={"A": a, "B": b, "C": c}, order=["A", "C", "B"])
+    return BsfBehavior(
+        name="CompareNumberDemo", nodes={"A": a, "B": b, "C": c}, order=["A", "C", "B"]
+    )
 
 
 def test_multi_pin_op_labels_every_pin_including_implicit_fallthrough(engine):
@@ -138,7 +140,9 @@ def test_static_jump_to_label_connects_components_that_share_it(engine):
     b.branches["next"] = "POP"
     c = BsfNode(id="C", op="label", args={"Label": IdLit("v_target")})
     c.branches["next"] = "POP"
-    behavior = BsfBehavior(name="StaticJumpTest", nodes={"A": a, "C": c, "B": b}, order=["A", "C", "B"])
+    behavior = BsfBehavior(
+        name="StaticJumpTest", nodes={"A": a, "C": c, "B": b}, order=["A", "C", "B"]
+    )
 
     argcache = ArgCache(engine)
     diagrams = render_mermaid(behavior, argcache)
@@ -163,11 +167,17 @@ def test_components_are_disjoint_and_cover_every_node(engine):
         seen: set[str] = set()
         total_nodes = 0
         for d in diagrams:
-            node_ids = {line.split('["')[0].strip()[1:] for line in d.split("\n") if line.strip().startswith("n") and '["' in line}
+            node_ids = {
+                line.split('["')[0].strip()[1:]
+                for line in d.split("\n")
+                if line.strip().startswith("n") and '["' in line
+            }
             assert seen.isdisjoint(node_ids), f"overlap with connect_resolved_jumps={connect}"
             seen |= node_ids
             total_nodes += len(node_ids)
-        assert total_nodes == len(b.order), f"lost or duplicated nodes with connect_resolved_jumps={connect}"
+        assert total_nodes == len(b.order), (
+            f"lost or duplicated nodes with connect_resolved_jumps={connect}"
+        )
 
 
 def _behavior_with_a_return_edge():
@@ -180,7 +190,11 @@ def _behavior_with_a_return_edge():
     label = BsfNode(id="L", op="label", args={"Label": IdLit("v_search")}, hidden={"cmt": "Search"})
     ret = BsfNode(id="R", op="jump", args={"Label": IdLit("v_begin")})
     ret.branches["next"] = "A"  # explicit return edge back into the primary component
-    return BsfBehavior(name="ReturnEdgeTest", nodes={"A": a, "B": b, "L": label, "R": ret}, order=["A", "B", "L", "R"])
+    return BsfBehavior(
+        name="ReturnEdgeTest",
+        nodes={"A": a, "B": b, "L": label, "R": ret},
+        order=["A", "B", "L", "R"],
+    )
 
 
 def test_external_reference_marker_for_edge_leaving_a_component(engine):

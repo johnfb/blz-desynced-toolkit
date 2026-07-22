@@ -37,7 +37,11 @@ def test_id_explicit_iff_referenced_or_label(engine, argcache, fname):
     def check(bb):
         referenced = referenced_node_ids(bb.nodes)
         for nid, node in bb.nodes.items():
-            assert node.id_explicit == (nid in referenced or node.op == "label"), (fname, nid, node.op)
+            assert node.id_explicit == (nid in referenced or node.op == "label"), (
+                fname,
+                nid,
+                node.op,
+            )
         for sub in bb.subs:
             check(sub)
 
@@ -77,7 +81,11 @@ def test_every_rendered_branch_target_shows_its_id(engine, argcache, fname):
     targets = set()
     for line in text.split("\n"):
         s = line.strip()
-        if not s or s.startswith("#") or s.startswith(("behavior ", "sub ", "desc:", "keepvars", "keeparrays")):
+        if (
+            not s
+            or s.startswith("#")
+            or s.startswith(("behavior ", "sub ", "desc:", "keepvars", "keeparrays"))
+        ):
             continue
         # an `id:` prefix is a bare identifier before the first `(`, containing a `:`
         head = s.split("(", 1)[0]
@@ -111,7 +119,9 @@ def test_idless_lines_parse_and_roundtrip(engine, argcache):
     bare_lines = [ln for ln in text2.split("\n") if ln.startswith("set_reg(")]
     assert len(bare_lines) == 2
     b2 = parse_behavior(text2, argcache)
-    assert to_py(compile_behavior(engine, b, argcache)) == to_py(compile_behavior(engine, b2, argcache))
+    assert to_py(compile_behavior(engine, b, argcache)) == to_py(
+        compile_behavior(engine, b2, argcache)
+    )
 
 
 def test_idless_line_can_still_carry_branch_notes(engine, argcache):
@@ -159,7 +169,9 @@ def test_own_line_and_inline_id_forms_compile_identically(engine, argcache):
     inline = "behavior T():\n\nhit: exit()\ncheck_number(Value=$A, Compare=5)  >hit (If Larger) >NEXT (If Smaller) >NEXT (If Equal)\n"
     a = parse_behavior(own_line, argcache)
     c = parse_behavior(inline, argcache)
-    assert to_py(compile_behavior(engine, a, argcache)) == to_py(compile_behavior(engine, c, argcache))
+    assert to_py(compile_behavior(engine, a, argcache)) == to_py(
+        compile_behavior(engine, c, argcache)
+    )
 
 
 @pytest.mark.parametrize("fname", _REAL)
@@ -167,7 +179,9 @@ def test_own_line_render_roundtrips(engine, argcache, fname):
     b = decompile_dcs(engine, (DATA_DIR / fname).read_text().strip())
     text = render_behavior(b, argcache)
     b2 = parse_behavior(text, argcache)
-    assert to_py(compile_behavior(engine, b, argcache)) == to_py(compile_behavior(engine, b2, argcache))
+    assert to_py(compile_behavior(engine, b, argcache)) == to_py(
+        compile_behavior(engine, b2, argcache)
+    )
 
 
 def test_dangling_id_declaration_is_rejected(engine, argcache):

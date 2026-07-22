@@ -139,12 +139,14 @@ def test_is_seen_vision_model(engine):
     player = w.faction("player")
     bugs = w.faction("bugs")
 
-    scout = w.spawn("f_bot_1m_c", player, 0, 0, visibility_range=15)
+    w.spawn(
+        "f_bot_1m_c", player, 0, 0, visibility_range=15
+    )  # establishes the player faction's vision bubble
     close_enemy = w.spawn("f_bot_1m_c", bugs, 10, 0)
     far_enemy = w.spawn("f_bot_1m_c", bugs, 30, 0)
 
-    assert w.is_seen(player, close_enemy) is True   # within scout's vision
-    assert w.is_seen(player, far_enemy) is False     # beyond it
+    assert w.is_seen(player, close_enemy) is True  # within scout's vision
+    assert w.is_seen(player, far_enemy) is False  # beyond it
     # The vision bubble is the same floored-Euclidean disc as the range gate (user eyeball
     # observation 2026-07-19 -- the on-screen shape looks identical to the sensing shape):
     # a fringe tile at (15,4), distance 15.52, floors to 15 <= vis and IS seen.
@@ -178,10 +180,10 @@ def test_real_get_closest_entity_runs_over_the_mock(engine):
     me = w.spawn("f_bot_1m_c", player, 0, 0, visibility_range=40)
     comp = w.add_component(me, "c_behavior")  # comp.owner is the mock entity
 
-    w.spawn("f_bot_1m_c", player, 5, 0)          # friendly, closer -- must be skipped
+    w.spawn("f_bot_1m_c", player, 5, 0)  # friendly, closer -- must be skipped
     near_enemy = w.spawn("f_bot_1m_c", bugs, 12, 0)
-    w.spawn("f_bot_1m_c", bugs, 25, 0)           # enemy, farther
-    w.spawn("f_bot_1m_c", bugs, 100, 0)          # enemy, out of vision range
+    w.spawn("f_bot_1m_c", bugs, 25, 0)  # enemy, farther
+    w.spawn("f_bot_1m_c", bugs, 100, 0)  # enemy, out of vision range
 
     state = engine.new_state()
     mem = Memory(engine, state)

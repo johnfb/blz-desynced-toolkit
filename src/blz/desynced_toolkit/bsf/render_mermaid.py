@@ -230,13 +230,17 @@ def _render_component(
         label = html.escape(f"{node_id}: {node.op}({args_str})")
         node_lines.append(f'  n{node_id}["{label}"]')
 
-        pins = [(pin, node.branches.get(pin)) for _, atype, pin in arg_pin_names(node.op, argcache) if atype == "exec"]
+        pins = [
+            (pin, node.branches.get(pin))
+            for _, atype, pin in arg_pin_names(node.op, argcache)
+            if atype == "exec"
+        ]
         next_pin = argcache.next_pin_name(node.op)
         if next_pin is not None:
             pins.append((next_pin, node.branches.get("next")))
         show_labels = len(pins) > 1
 
-        for pin, raw_target in pins:
+        for pin, _ in pins:
             edge_label = pin if show_labels else None
             target = _resolve_pin_target(node_id, pin, node, b.order)
             if target is None:
@@ -306,5 +310,9 @@ def render_mermaid(
     for component in components:
         is_primary = component is primary
         comp_title = (title or b.name) if is_primary else _component_title(component, b)
-        diagrams.append(_render_component(component, b, argcache, jump_targets, comp_title, is_primary, direction))
+        diagrams.append(
+            _render_component(
+                component, b, argcache, jump_targets, comp_title, is_primary, direction
+            )
+        )
     return diagrams

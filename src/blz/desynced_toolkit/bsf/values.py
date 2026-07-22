@@ -6,7 +6,7 @@ module stays untouched by any future change to the surface syntax."""
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Union
+from typing import Any
 
 import lupa.lua54 as lupa
 
@@ -70,7 +70,7 @@ class Unknown:
     raw: Any
 
 
-BsfValue = Union[Num, Coord, IdLit, Var, Param, FrameReg, Fr, Unknown]
+BsfValue = Num | Coord | IdLit | Var | Param | FrameReg | Fr | Unknown
 
 
 def from_lua(v) -> BsfValue:
@@ -81,7 +81,7 @@ def from_lua(v) -> BsfValue:
     if isinstance(v, bool):
         return Unknown(v)
     if isinstance(v, (int, float)):
-        return Param(v) if v > 0 else FrameReg(v)
+        return Param(int(v)) if v > 0 else FrameReg(int(v))
     if isinstance(v, str):
         return Var(v)
     if lupa.lua_type(v) == "table":
@@ -93,7 +93,7 @@ def from_lua(v) -> BsfValue:
         num = v["num"] if "num" in keys else None
         if "coord" in keys:
             c = v["coord"]
-            if lupa.lua_type(c) == "table" and "x" in c.keys():
+            if lupa.lua_type(c) == "table" and "x" in c:
                 cx, cy = c["x"], c["y"]
             else:
                 cx, cy = c[1], c[2]  # legacy [x,y] array shape -- tolerated on read, never written

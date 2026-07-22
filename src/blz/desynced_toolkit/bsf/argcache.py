@@ -5,6 +5,7 @@ FROM this same data for humans and is not meant to be parsed by tooling."""
 
 from __future__ import annotations
 
+import contextlib
 import re
 
 import lupa.lua54 as lupa
@@ -88,7 +89,7 @@ class ArgCache:
 
     def all_ops(self) -> list[str]:
         """Every op id in the live `data.instructions` table -- used only for typo suggestions."""
-        return [k for k in self.engine.data.instructions.keys() if isinstance(k, str)]
+        return [k for k in self.engine.data.instructions if isinstance(k, str)]
 
     def exec_pin_names(self, op: str) -> list[str]:
         """Every branch-pin display name this op can carry in BSF text: the declared exec args
@@ -154,7 +155,11 @@ def _scan_registrations(source, package_id: str = "Data") -> dict[str, str | Non
             continue
         text = source.read_text(path)
         matches = sorted(
-            [(m.start(), m.group(1)) for pat in (_DATA_ID_RE, _REGISTER_ID_RE) for m in pat.finditer(text)]
+            [
+                (m.start(), m.group(1))
+                for pat in (_DATA_ID_RE, _REGISTER_ID_RE)
+                for m in pat.finditer(text)
+            ]
         )
         for idx, (pos, id_) in enumerate(matches):
             end = matches[idx + 1][0] if idx + 1 < len(matches) else len(text)
@@ -165,7 +170,7 @@ def _scan_registrations(source, package_id: str = "Data") -> dict[str, str | Non
     return ids
 
 
-def arg_pin_names(op: str, argcache: "ArgCache") -> list[tuple[int, str, str]]:
+def arg_pin_names(op: str, argcache: ArgCache) -> list[tuple[int, str, str]]:
     """Returns `[(position, atype, pin_name), ...]` for op's declared args, in position order.
     A few real ops declare two or more args with the *same* display name at different positions
     (e.g. `for_signal_match` has an "in" Signal at position 1 and an "out" Signal at position 3;
@@ -221,14 +226,12 @@ def call_arg_positions(b, node) -> dict[str, int]:
             positions[p.name] = i
     for name in node.args:
         if name not in positions and name.startswith("arg"):
-            try:
+            with contextlib.suppress(ValueError):
                 positions[name] = int(name[3:])
-            except ValueError:
-                pass
     return positions
 
 
-def _direct_written_slots(nodes: dict, argcache: "ArgCache") -> set[int]:
+def _direct_written_slots(nodes: dict, argcache: ArgCache) -> set[int]:
     """Base case: parameter slots used as an "out"-typed argument directly within `nodes`,
     ignoring `call`/`load_behavior` entirely (their own arg directions come from the *target*'s
     params, not from ArgCache -- see `written_param_slots` for the passthrough case)."""
@@ -244,7 +247,7 @@ def _direct_written_slots(nodes: dict, argcache: "ArgCache") -> set[int]:
     return written
 
 
-def written_param_slots(b, argcache: "ArgCache", _in_progress: frozenset | None = None) -> set[int]:
+def written_param_slots(b, argcache: ArgCache, _in_progress: frozenset | None = None) -> set[int]:
     """Which of `b`'s own declared parameter slots are ever written to -- directly (an "out"-
     typed argument somewhere in `b`'s own body) or transitively, by being passed into a
     `call`/`load_behavior` node at a position the *target* sub-behavior itself writes.
@@ -282,13 +285,22 @@ def written_param_slots(b, argcache: "ArgCache", _in_progress: frozenset | None 
             sub = node.hidden.get("sub")
             if isinstance(sub, (int, float)) and not isinstance(sub, bool) and sub == -1:
                 target_written = written  # self -- use the in-progress set directly
-            elif isinstance(sub, (int, float)) and not isinstance(sub, bool) and sub > 0 and int(sub) - 1 < len(b.subs):
+            elif (
+                isinstance(sub, (int, float))
+                and not isinstance(sub, bool)
+                and sub > 0
+                and int(sub) - 1 < len(b.subs)
+            ):
                 target_written = written_param_slots(b.subs[int(sub) - 1], argcache, in_progress)
             else:
                 continue
             positions = call_arg_positions(b, node)
             for name, value in node.args.items():
-                if isinstance(value, Param) and positions.get(name) in target_written and value.slot not in written:
+                if (
+                    isinstance(value, Param)
+                    and positions.get(name) in target_written
+                    and value.slot not in written
+                ):
                     written.add(value.slot)
                     changed = True
     return written

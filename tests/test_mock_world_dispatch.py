@@ -37,8 +37,7 @@ def test_get_location_self(engine):
         engine,
         w,
         owner,
-        "behavior T(Out*):\n"
-        "n1: get_location(Coord=Out)\n",  # Unit omitted -> self
+        "behavior T(Out*):\nn1: get_location(Coord=Out)\n",  # Unit omitted -> self
     )
     coord = interp.read_param(1).coord
     assert (coord.x, coord.y) == (7, 3)
@@ -58,8 +57,7 @@ def test_get_closest_entity_finds_enemy(engine):
         engine,
         w,
         owner,
-        "behavior T(Out*):\n"
-        "n1: get_closest_entity(Filter=v_enemy_faction, Output=Out)\n",
+        "behavior T(Out*):\nn1: get_closest_entity(Filter=v_enemy_faction, Output=Out)\n",
     )
     assert interp.read_param(1).entity.eid == enemy.eid
 
@@ -106,7 +104,7 @@ def test_frame_register_wire_mapping_signal(engine):
         "n1: set_reg(Value=7, Target=@signal)\n"
         "n2: get_self(Unit Reference=$me)\n"
         "n3: read_signal(Unit=$me, Result=Out)\n",  # read_signal has no self-default: nil Unit
-    )                                               # writes nil through Set (the Init-nil path)
+    )  # writes nil through Set (the Init-nil path)
     assert interp.read_param(1).num == 7
     assert owner.registers[4].num == 7  # FRAMEREG_SIGNAL = 4 = wire -4
     assert owner.registers[1] is None  # nothing leaked onto Goto (wire -1)
@@ -275,9 +273,7 @@ def test_range_probe_fixture_against_mock_model(engine, offset, min_range, dista
     comp = w.add_component(owner, "c_behavior")
     w.spawn("f_bot_1m_b", "player", offset[0], offset[1])  # the probe target (a Hauler)
     # Probe param = Hauler frame id (params are component registers under the real dispatcher)
-    interp = Interpreter(
-        engine, prog, params={1: engine.new_value(0, id_="f_bot_1m_b")}, comp=comp
-    )
+    interp = Interpreter(engine, prog, params={1: engine.new_value(0, id_="f_bot_1m_b")}, comp=comp)
     interp.run()
     assert owner.registers[4].num == min_range  # @signal (wire -4)
     assert owner.registers[2].num == distance  # @store (wire -2)

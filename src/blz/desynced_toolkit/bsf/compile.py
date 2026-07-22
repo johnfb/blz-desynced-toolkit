@@ -2,7 +2,15 @@
 
 from __future__ import annotations
 
-from .argcache import DYNAMIC_ARG_OPS, ArgCache, arg_pin_names, call_arg_positions, written_param_slots
+import lupa.lua54 as lupa
+
+from .argcache import (
+    DYNAMIC_ARG_OPS,
+    ArgCache,
+    arg_pin_names,
+    call_arg_positions,
+    written_param_slots,
+)
 from .ir import BsfBehavior
 from .values import to_lua
 
@@ -43,7 +51,7 @@ def _resolve_branch_target(target, positions: dict[str, int], is_last: bool):
 _OMIT = object()
 
 
-def _compile_one(engine, b: BsfBehavior, argcache: ArgCache, lua) -> "lupa._LuaTable":
+def _compile_one(engine, b: BsfBehavior, argcache: ArgCache, lua) -> lupa._LuaTable:
     # Fresh id->position map, local to this call -- never threaded into a recursive `subs` call,
     # so nested sub-behaviors never leak into each other's (or the parent's) node-id namespace.
     positions = {node_id: i for i, node_id in enumerate(b.order, start=1)}
@@ -106,8 +114,8 @@ def _compile_one(engine, b: BsfBehavior, argcache: ArgCache, lua) -> "lupa._LuaT
         if next_resolved is not _OMIT:
             t["next"] = next_resolved
 
-        for field_name, value in node.hidden.items():
-            t[field_name] = value
+        for field_name, hidden_value in node.hidden.items():
+            t[field_name] = hidden_value
 
         prog[pos] = t
 
@@ -119,7 +127,7 @@ def _compile_one(engine, b: BsfBehavior, argcache: ArgCache, lua) -> "lupa._LuaT
     if b.params:
         written = written_param_slots(b, argcache)
         parameters = lua.table()
-        for i, p in enumerate(b.params, start=1):
+        for i, _ in enumerate(b.params, start=1):
             parameters[i] = i in written
         prog["parameters"] = parameters
         # pnames is only written back if some name is a genuine custom display name -- a slot

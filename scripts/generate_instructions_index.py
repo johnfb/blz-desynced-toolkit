@@ -78,7 +78,7 @@ def _lua_len(tbl) -> int:
 
 
 def _int_keys(tbl) -> list[int]:
-    return sorted(k for k in tbl.keys() if isinstance(k, int))
+    return sorted(k for k in tbl if isinstance(k, int))
 
 
 def _str_or_none(v) -> str | None:
@@ -153,7 +153,7 @@ def _collect(engine: LupaEngine) -> list[dict]:
     )
 
     entries = []
-    for op in instructions.keys():
+    for op in instructions:
         if not isinstance(op, str) or op == "nop":
             continue
         d = instructions[op]
@@ -161,9 +161,7 @@ def _collect(engine: LupaEngine) -> list[dict]:
         category = _str_or_none(d.category)
         has_convert = d.convert is not None
         args_raw = d.args
-        args = (
-            [to_py(args_raw[i]) for i in _int_keys(args_raw)] if args_raw is not None else []
-        )
+        args = [to_py(args_raw[i]) for i in _int_keys(args_raw)] if args_raw is not None else []
         entries.append(
             {
                 "op": op,

@@ -5,7 +5,7 @@ section documents the model and its provenance). The golden end-to-end different
 real in-game circuit log lives in test_movement_circuit_golden.py; these are the unit-level
 pieces."""
 
-from blz.desynced_toolkit import Interpreter, MockWorld
+from blz.desynced_toolkit import MockWorld
 from blz.desynced_toolkit.bsf.argcache import ArgCache
 from blz.desynced_toolkit.bsf.compile import compile_behavior
 from blz.desynced_toolkit.bsf.parse_text import parse_behavior

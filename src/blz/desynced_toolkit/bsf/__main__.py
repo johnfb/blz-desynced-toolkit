@@ -48,7 +48,10 @@ def _make_engine(game_data: str | None) -> LupaEngine:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m blz.desynced_toolkit.bsf")
-    parser.add_argument("--game-data", help="path to the game data extract (default: sibling desynced-game-data dir, or $DESYNCED_GAME_DATA)")
+    parser.add_argument(
+        "--game-data",
+        help="path to the game data extract (default: sibling desynced-game-data dir, or $DESYNCED_GAME_DATA)",
+    )
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_decompile = sub.add_parser("decompile", help="stdin: .dcs string -> stdout: BSF text")
@@ -65,7 +68,9 @@ def main(argv: list[str] | None = None) -> int:
     p_compile = sub.add_parser("compile", help="stdin: BSF text -> stdout: .dcs string")
     p_compile.add_argument("--input", type=argparse.FileType("r"), default=sys.stdin)
     p_compile.add_argument("--output", type=argparse.FileType("w"), default=sys.stdout)
-    p_compile.add_argument("--type", default="C", help="wire type char to encode (default: C, a behavior/program)")
+    p_compile.add_argument(
+        "--type", default="C", help="wire type char to encode (default: C, a behavior/program)"
+    )
 
     p_diff = sub.add_parser(
         "semantic-diff",
@@ -77,7 +82,7 @@ def main(argv: list[str] | None = None) -> int:
     p_ids = sub.add_parser(
         "ids",
         help="look up game ids by internal id or in-game display name (case-insensitive "
-        "substring), e.g. `ids radar` finds c_radar (\"Long-Range Radar\")",
+        'substring), e.g. `ids radar` finds c_radar ("Long-Range Radar")',
     )
     p_ids.add_argument("query", help="substring to match against ids and display names")
 

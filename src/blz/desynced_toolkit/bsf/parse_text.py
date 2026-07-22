@@ -74,6 +74,7 @@ def _suggest(name: str, candidates) -> str:
     matches = difflib.get_close_matches(name, list(candidates), n=1)
     return f" -- did you mean {matches[0]!r}?" if matches else ""
 
+
 _NUM_RE = re.compile(r"^-?\d+(\.\d+)?$")
 _SLOT_UNDECLARED_RE = re.compile(r"^slot(\d+)\(undeclared\)$")
 _HEADER_RE = re.compile(r"^(behavior|sub)\s+(.+)\((.*)\):\s*$")
@@ -356,7 +357,9 @@ def _split_post_paren(post: str, line_no, line) -> tuple[str, str | None]:
     if semi is not None:
         tail = _strip_trailing_comment(post[semi + 1 :])
         if tail.strip():
-            raise BsfParseError(f"unexpected content after ';' terminator: {tail.strip()!r}", line_no, line)
+            raise BsfParseError(
+                f"unexpected content after ';' terminator: {tail.strip()!r}", line_no, line
+            )
         post = post[:semi]
     block = _find_cmt_block(post, line_no, line)
     if block is None:
@@ -580,7 +583,9 @@ def parse_node(
         node.args[name] = value
     if block_cmt is not None:
         if "cmt" in node.hidden:
-            raise BsfParseError("cmt specified both inline and as a block on one node", line_no, line)
+            raise BsfParseError(
+                "cmt specified both inline and as a block on one node", line_no, line
+            )
         node.hidden["cmt"] = block_cmt
     node.branches.update(_parse_branch_notes(branch_notes_str, op, argcache, line_no, line))
     return node
@@ -606,7 +611,9 @@ def _parse_params(params_str: str) -> list[BsfParam]:
 _ATTR_KEYWORDS = ("desc", "keepvars", "keeparrays")
 
 
-def _parse_one(lines: list[str], i: int, keyword: str, argcache: ArgCache) -> tuple[BsfBehavior, int]:
+def _parse_one(
+    lines: list[str], i: int, keyword: str, argcache: ArgCache
+) -> tuple[BsfBehavior, int]:
     m = _HEADER_RE.match(lines[i])
     if not m or m.group(1) != keyword:
         raise BsfParseError(f"expected a {keyword!r} header here", i + 1, lines[i])
@@ -632,13 +639,17 @@ def _parse_one(lines: list[str], i: int, keyword: str, argcache: ArgCache) -> tu
             attrs["desc"] = _unescape_string(dm.group(1))
         elif key == "keepvars":
             if not _KEEPVARS_RE.match(stripped):
-                raise BsfParseError("malformed keepvars line (expected: keepvars: true)", i + 1, lines[i])
+                raise BsfParseError(
+                    "malformed keepvars line (expected: keepvars: true)", i + 1, lines[i]
+                )
             attrs["keepvars"] = True
         else:
             km = _KEEPARRAYS_RE.match(stripped)
             if not km:
                 raise BsfParseError(
-                    'malformed keeparrays line (expected: keeparrays: "startup" or "store")', i + 1, lines[i]
+                    'malformed keeparrays line (expected: keeparrays: "startup" or "store")',
+                    i + 1,
+                    lines[i],
                 )
             attrs["keeparrays"] = km.group(1)
         i += 1
@@ -685,7 +696,9 @@ def _parse_one(lines: list[str], i: int, keyword: str, argcache: ArgCache) -> tu
         # A node may span several physical lines (wrapped args, or a trailing cmt block); group
         # them into one logical node text, terminated by `;` when multi-line.
         node_text, next_i = _consume_node(lines, i)
-        node = parse_node(node_text, params, argcache, line_no=i + 1, known_ids=known_ids, auto_id=auto_id)
+        node = parse_node(
+            node_text, params, argcache, line_no=i + 1, known_ids=known_ids, auto_id=auto_id
+        )
         if pending_id is not None:
             if node.id_explicit:
                 raise BsfParseError(
@@ -752,12 +765,19 @@ def _parse_one(lines: list[str], i: int, keyword: str, argcache: ArgCache) -> tu
                     node_lines[node.id],
                 )
 
+    desc = attrs.get("desc")
+    assert desc is None or isinstance(desc, str)
+    keepvars = attrs.get("keepvars", False)
+    assert isinstance(keepvars, bool)
+    keeparrays = attrs.get("keeparrays")
+    assert keeparrays is None or isinstance(keeparrays, str)
+
     return BsfBehavior(
         name=name,
         params=params,
-        desc=attrs.get("desc"),
-        keepvars=attrs.get("keepvars", False),
-        keeparrays=attrs.get("keeparrays"),
+        desc=desc,
+        keepvars=keepvars,
+        keeparrays=keeparrays,
         nodes=nodes,
         order=order,
     ), i

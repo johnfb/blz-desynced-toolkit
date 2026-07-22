@@ -17,6 +17,10 @@ def to_py(t, seen=None):
         return "<cycle>"
     seen = seen | {id(t)}
     keys = list(t.keys())
-    if keys and all(isinstance(k, int) for k in keys) and sorted(keys) == list(range(1, len(keys) + 1)):
+    if (
+        keys
+        and all(isinstance(k, int) for k in keys)
+        and sorted(keys) == list(range(1, len(keys) + 1))
+    ):
         return [to_py(v, seen) for v in (t[k] for k in sorted(keys))]
     return {k: to_py(t[k], seen) for k in keys}

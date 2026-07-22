@@ -9,7 +9,7 @@ import pytest
 from blz.desynced_toolkit.bsf.argcache import ArgCache, arg_pin_names
 from blz.desynced_toolkit.bsf.compile import compile_behavior
 from blz.desynced_toolkit.bsf.decompile import decompile_dcs
-from blz.desynced_toolkit.bsf.ir import BsfBehavior, BsfNode, BsfParam
+from blz.desynced_toolkit.bsf.ir import BsfBehavior, BsfNode
 from blz.desynced_toolkit.bsf.parse_text import parse_behavior
 from blz.desynced_toolkit.bsf.render_text import render_behavior
 from blz.desynced_toolkit.bsf.values import Coord, Fr, IdLit, Num, Param, Var
@@ -39,7 +39,9 @@ def test_fixture_roundtrips_through_text(engine, fname):
     b1 = decompile_dcs(engine, raw)
     text = render_behavior(b1, argcache)
     b2 = parse_behavior(text, argcache)
-    assert to_py(compile_behavior(engine, b1, argcache)) == to_py(compile_behavior(engine, b2, argcache))
+    assert to_py(compile_behavior(engine, b1, argcache)) == to_py(
+        compile_behavior(engine, b2, argcache)
+    )
 
 
 def test_var_name_containing_a_quote_and_fake_syntax_roundtrips(engine):
@@ -61,7 +63,9 @@ def test_var_name_containing_a_quote_and_fake_syntax_roundtrips(engine):
     assert '$"A\\")  >POP (next)"' in text
     b2 = parse_behavior(text, argcache)
     assert b2.nodes["n1"].args["Target"].name == tricky_name
-    assert to_py(compile_behavior(engine, behavior, argcache)) == to_py(compile_behavior(engine, b2, argcache))
+    assert to_py(compile_behavior(engine, behavior, argcache)) == to_py(
+        compile_behavior(engine, b2, argcache)
+    )
 
 
 def test_jump_label_annotation_literal_vs_dynamic(engine):
@@ -104,7 +108,14 @@ def test_jump_label_annotation_distinguishes_by_num(engine):
     jump_num10 = BsfNode(id="n6", op="jump", args={"Label": IdLit("v_broken", 10)})
     behavior = BsfBehavior(
         name="NumLabelTest",
-        nodes={"n1": label_bare, "n2": label_num1, "n3": label_num10, "n4": jump_bare, "n5": jump_num1, "n6": jump_num10},
+        nodes={
+            "n1": label_bare,
+            "n2": label_num1,
+            "n3": label_num10,
+            "n4": jump_bare,
+            "n5": jump_num1,
+            "n6": jump_num10,
+        },
         order=["n1", "n2", "n3", "n4", "n5", "n6"],
     )
     argcache = ArgCache(engine)
@@ -277,7 +288,9 @@ def test_keepvars_and_keeparrays_survive_text_roundtrip(engine):
     # full text round trip must preserve the flag, not just the initial render
     reparsed_keep = parse_behavior(text_keep, argcache)
     assert reparsed_keep.keepvars is True
-    assert to_py(compile_behavior(engine, b_keep, argcache)) == to_py(compile_behavior(engine, reparsed_keep, argcache))
+    assert to_py(compile_behavior(engine, b_keep, argcache)) == to_py(
+        compile_behavior(engine, reparsed_keep, argcache)
+    )
 
     reparsed_clear = parse_behavior(text_clear, argcache)
     assert reparsed_clear.keepvars is False

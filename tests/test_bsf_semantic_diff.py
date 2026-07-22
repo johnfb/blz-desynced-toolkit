@@ -11,7 +11,7 @@ shows all five as "changes"; a correct semantic diff must report only the three 
 from pathlib import Path
 
 from blz.desynced_toolkit.bsf.argcache import ArgCache
-from blz.desynced_toolkit.bsf.semantic_diff import semantic_diff_dcs, semantic_diff_behaviors
+from blz.desynced_toolkit.bsf.semantic_diff import semantic_diff_behaviors, semantic_diff_dcs
 
 DATA_DIR = Path(__file__).parent / "data"
 
@@ -92,4 +92,3 @@ def test_added_removed_and_changed_nodes_on_hand_built_ir(engine):
     report2 = semantic_diff_behaviors(old, new2, argcache)
     assert "+ [C]" in report2
     assert "Value=9" in report2
-

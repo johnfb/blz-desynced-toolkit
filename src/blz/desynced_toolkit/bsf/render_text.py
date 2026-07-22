@@ -38,12 +38,7 @@ def _escape_string(s: str) -> str:
     (not folded into one) so a real `\r\n` round-trips byte-exact -- an earlier version collapsed
     both to `\\n`, which round-tripped fine structurally but silently changed a comment's actual
     line-ending bytes, caught by the fixture round-trip test comparing compiled wire tables."""
-    return (
-        s.replace("\\", "\\\\")
-        .replace('"', '\\"')
-        .replace("\n", "\\n")
-        .replace("\r", "\\r")
-    )
+    return s.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n").replace("\r", "\\r")
 
 
 def _var_needs_quoting(name: str) -> bool:
@@ -181,7 +176,9 @@ def _render_cmt_block(s: str) -> str:
     return f'cmt="""{s}"""'
 
 
-def render_node(node: BsfNode, params: list[BsfParam], jump_targets: dict[str, str], argcache: ArgCache) -> str:
+def render_node(
+    node: BsfNode, params: list[BsfParam], jump_targets: dict[str, str], argcache: ArgCache
+) -> str:
     # A `cmt` renders as a triple-quoted block under the node UNLESS its body contains `"""`
     # itself (unrepresentable in that form) or isn't a plain string -- those fall back to the
     # inline, single-quoted, escaped `cmt="..."` arg form, which still round-trips.
@@ -216,7 +213,7 @@ def render_node(node: BsfNode, params: list[BsfParam], jump_targets: dict[str, s
         for pin, target in node.branches.items():
             if target is None:
                 continue
-            display_pin = pin
+            display_pin: str | None = pin
             if pin == "next":
                 display_pin = next_pin
                 if display_pin is None:
@@ -231,6 +228,7 @@ def render_node(node: BsfNode, params: list[BsfParam], jump_targets: dict[str, s
     if notes:
         line += "  " + " ".join(notes)
     if cmt_as_block:
+        assert isinstance(cmt_val, str)  # implied by cmt_as_block, restated for mypy narrowing
         # A node with a cmt block spans lines, so it must be `;`-terminated (the parser scans for
         # `;`, keeping indentation/blank lines non-semantic).
         line += "\n  " + _render_cmt_block(cmt_val) + ";"
@@ -285,7 +283,9 @@ def _render_into(
     # side of a `call` node a pin is drawn on), not a runtime distinction, so trusting a stored
     # bit here would let it silently go stale after an edit that adds or removes a write.
     written = written_param_slots(b, argcache)
-    params_str = ", ".join(p.name + ("*" if (i + 1) in written else "") for i, p in enumerate(b.params))
+    params_str = ", ".join(
+        p.name + ("*" if (i + 1) in written else "") for i, p in enumerate(b.params)
+    )
     lines.append(f"{keyword} {b.name}({params_str}):")
     if b.desc:
         # Escaped like every other quoted string in the grammar -- an earlier version

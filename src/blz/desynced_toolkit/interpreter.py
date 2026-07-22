@@ -98,12 +98,11 @@ class Interpreter:
             )
         if status == "no_asm":
             raise RuntimeError("behavior disappeared from the faction library mid-run")
-        if status == "waiting":
-            # waiting on component state: an armed sleep or a pending sync move will wake it;
-            # with neither, nothing ever will (`exit`'s forever-wait) -- the run is over
-            if (self.comp.sleep or 0) <= 0 and not self._waiting_on_move():
-                self._finished = True
-                return True
+        # waiting on component state: an armed sleep or a pending sync move will wake it; with
+        # neither, nothing ever will (`exit`'s forever-wait) -- the run is over
+        if status == "waiting" and (self.comp.sleep or 0) <= 0 and not self._waiting_on_move():
+            self._finished = True
+            return True
         return False
 
     # -- driving --------------------------------------------------------------------------------

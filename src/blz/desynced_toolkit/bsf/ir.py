@@ -80,4 +80,4 @@ class BsfBehavior:
     keeparrays: str | None = None
     nodes: dict[str, BsfNode] = field(default_factory=dict)
     order: list[str] = field(default_factory=list)  # node ids in source/emission order
-    subs: list["BsfBehavior"] = field(default_factory=list)
+    subs: list[BsfBehavior] = field(default_factory=list)

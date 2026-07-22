@@ -18,8 +18,6 @@ GAME_DATA_DIR = os.environ.get("DESYNCED_GAME_DATA", str(DEFAULT_GAME_DATA_DIR))
 @pytest.fixture(scope="session")
 def engine():
     if not os.path.exists(GAME_DATA_DIR):
-        pytest.skip(
-            f"game data extract not found at {GAME_DATA_DIR} (set DESYNCED_GAME_DATA)"
-        )
+        pytest.skip(f"game data extract not found at {GAME_DATA_DIR} (set DESYNCED_GAME_DATA)")
     src = open_asset_source(GAME_DATA_DIR)
     return LupaEngine(src)

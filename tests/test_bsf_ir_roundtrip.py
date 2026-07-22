@@ -60,7 +60,9 @@ def _strip_unused_bool_args(v, argcache: ArgCache):
             if op in DYNAMIC_ARG_OPS:
                 exec_positions = set()
             else:
-                exec_positions = {i for i, atype, _ in arg_pin_names(op, argcache) if atype == "exec"}
+                exec_positions = {
+                    i for i, atype, _ in arg_pin_names(op, argcache) if atype == "exec"
+                }
             v = {
                 k: x
                 for k, x in v.items()

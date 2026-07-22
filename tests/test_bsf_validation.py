@@ -77,7 +77,9 @@ def test_typoed_arg_name_rejected_with_valid_names(argcache):
 
 
 def test_branch_to_unknown_node_rejected(argcache):
-    with pytest.raises(BsfParseError, match=r"node 'n1' pin 'If Smaller' targets unknown node 'n9'"):
+    with pytest.raises(
+        BsfParseError, match=r"node 'n1' pin 'If Smaller' targets unknown node 'n9'"
+    ):
         _parse(
             "behavior T():\n\n"
             "n1: check_number(Value=$A, Compare=5)  >NEXT (If Larger) >n9 (If Smaller) >NEXT (If Equal)\n"
@@ -112,7 +114,9 @@ def test_multi_pin_op_fully_written_accepted_and_next_is_fallthrough(argcache):
 
 
 def test_single_pin_op_accepts_explicit_next_token(argcache):
-    b = _parse("behavior T():\n\nn1: set_reg(Value=1, Target=$B)  >NEXT (next)\nn2: unlock()\n", argcache)
+    b = _parse(
+        "behavior T():\n\nn1: set_reg(Value=1, Target=$B)  >NEXT (next)\nn2: unlock()\n", argcache
+    )
     assert "next" not in b.nodes["n1"].branches
 
 
@@ -138,10 +142,7 @@ def test_pop_and_next_reserved_as_node_ids(argcache):
 
 def test_blank_lines_between_nodes_allowed(argcache):
     b = _parse(
-        "behavior T():\n\n"
-        "n1: set_reg(Value=1, Target=$B)\n"
-        "\n"
-        "n2: set_reg(Value=2, Target=$C)\n",
+        "behavior T():\n\nn1: set_reg(Value=1, Target=$B)\n\nn2: set_reg(Value=2, Target=$C)\n",
         argcache,
     )
     assert b.order == ["n1", "n2"]
@@ -346,7 +347,9 @@ def test_annotated_render_parses_to_same_compile(engine, argcache):
     annotated = render_behavior(b1, argcache, annotate=True)
     assert "# Copy" in annotated  # set_reg's in-game display name
     b2 = parse_behavior(annotated, argcache)
-    assert to_py(compile_behavior(engine, b1, argcache)) == to_py(compile_behavior(engine, b2, argcache))
+    assert to_py(compile_behavior(engine, b1, argcache)) == to_py(
+        compile_behavior(engine, b2, argcache)
+    )
 
 
 def test_id_display_names_scanned_from_registrations(argcache):
@@ -387,7 +390,12 @@ def test_cli_subcommands_smoke(engine, tmp_path):
     src.write_text(dcs)
     bsf_out = tmp_path / "b.bsf"
     dcs_out = tmp_path / "b2.dcs"
-    gd = ["--game-data", os.environ.get("DESYNCED_GAME_DATA", str(Path(__file__).parent.parent.parent / "desynced-game-data"))]
+    gd = [
+        "--game-data",
+        os.environ.get(
+            "DESYNCED_GAME_DATA", str(Path(__file__).parent.parent.parent / "desynced-game-data")
+        ),
+    ]
     assert main(gd + ["decompile", "--input", str(src), "--output", str(bsf_out)]) == 0
     assert main(gd + ["compile", "--input", str(bsf_out), "--output", str(dcs_out)]) == 0
     assert main(gd + ["lint", "--input", str(src)]) == 0
