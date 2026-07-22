@@ -13,6 +13,20 @@ and confirms the arrival model** — `test_arrival_probe.py` is a golden differe
 real log (`tests/data/arrival_probe_ingame.log`). Work state lives in `todo.md`
 (§ `desynced_toolkit` / BSF infrastructure), not here.
 
+**Blueprint loading landed (2026-07-22):** `MockWorld.load_blueprint` (`mock_world.py`) spawns a
+whole blueprint (wire type `'B'` — a `multi` lattice of several buildings, or a single building)
+into the world: every building's frame/offset, its real `components` (sockets and hidden/inherent
+ones alike), and its initial `regs` as real frame/component register writes. A component whose
+`data.components[id].base_id == "c_behavior"` (the `c_behavior`/`c_integrated_behavior`/
+`c_autobase` family) has its program resolved from the blueprint's own `dependencies` array (the
+same 1-based-index convention `call`'s `sub` field uses — confirmed against `data/library.lua`'s
+`UnpackCompactedItemToLibraryTable`/`iblueprintcomponents`, not guessed) and installed via the same
+machinery `attach_behavior` uses. Validated against a real deployed blueprint (the Blight Magnifier
+lattice) — see `tests/test_mock_world_blueprint.py`. This is narrower than the still-open
+"BSF envelope/sidecar" item in `desynced-behaviors`' `todo.md` (`nx`/`ny` node positions, full
+round-trip blueprint *authoring*) — this is load-only, for testing blueprint-embedded behaviors in
+the mock world, not a BSF representation of a blueprint.
+
 ## Goal
 
 Extend `desynced_toolkit`'s `Interpreter` so a behavior can be run against a **mock world**: a

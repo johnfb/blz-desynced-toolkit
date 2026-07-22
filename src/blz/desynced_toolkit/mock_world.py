@@ -35,6 +35,12 @@ class DebugPrint:
 _WORLD_LUA = resources.files(__package__).joinpath("world.lua").read_text(encoding="utf-8")
 
 
+def _array_values(table) -> list:
+    """A Lua array-shaped table's values in index order (1..N), skipping any non-integer sibling
+    keys -- mirrors `bsf/decompile.py`'s `_int_keys` helper."""
+    return [table[k] for k in sorted(k for k in table if isinstance(k, int))]
+
+
 class MockWorld:
     """A populated, steppable mock world sharing one :class:`LupaEngine`.
 
@@ -95,9 +101,85 @@ class MockWorld:
             if type_char != "C":
                 raise ValueError(f"not a behavior clipboard string (type {type_char!r})")
         comp = self.add_component(entity, "c_behavior")
+        return self._attach_behavior_to_component(comp, prog, params)
+
+    def _attach_behavior_to_component(
+        self, comp, prog, params: dict[int, object] | None = None
+    ) -> Interpreter:
+        """Install ``prog`` onto an already-attached component (blueprint loading: the
+        behavior-hosting component -- `c_behavior`/`c_integrated_behavior`/`c_autobase` -- is
+        already in the blueprint's own `components` list, so this skips `attach_behavior`'s
+        own `add_component`)."""
         interp = Interpreter(self.engine, prog, params=params, comp=comp)
         self.interpreters.append(interp)
         return interp
+
+    def load_blueprint(self, prog, faction: str = "player", x: int = 0, y: int = 0):
+        """Spawn every building of a blueprint (a decoded/compiled `'B'` table, or a raw `.dcs`
+        string) into the world at origin ``(x, y)``. A `multi` blueprint (several buildings, e.g.
+        the Magnifier lattice) spawns one entity per entry at ``(x + bp.x, y + bp.y)``; a
+        single-building blueprint spawns one entity at ``(x, y)``.
+
+        Each building's `components` list is attached for real (`add_component`), including
+        sockets and hidden/inherent components (the Integrated Behavior Controller, etc). A
+        component whose real `data.components[id].base_id == "c_behavior"` (the whole
+        Behavior-Controller family: `c_behavior`/`c_integrated_behavior`/`c_autobase`) carries its
+        program as a 1-based index into the blueprint's own `dependencies` array (confirmed
+        against `data/library.lua`'s `UnpackCompactedItemToLibraryTable`/`iblueprintcomponents` --
+        the same convention `call`'s `sub` field uses) -- that program is installed on the
+        component via `attach_behavior`'s own machinery.
+
+        Initial `regs` are applied as real register writes: a plain integer key is a frame
+        register (`FRAMEREG_GOTO`..`FRAMEREG_SIGNAL`, 1..4, on the entity itself); a `"N|M"`
+        string key is component #N's (1-based position in `components`) register M -- these are
+        the same slots a `call`'s `params=` would write, so a behavior-hosting component's own
+        register-shaped `regs` entries double as its startup parameters.
+
+        Returns the list of spawned entities, in building order (`multi` order, or a single-entry
+        list for a non-multi blueprint)."""
+        if isinstance(prog, str):
+            type_char, table = self.engine.decode_dcs(prog.strip())
+            if type_char != "B":
+                raise ValueError(f"not a blueprint clipboard string (type {type_char!r})")
+        else:
+            table = prog
+        keys = set(table.keys())
+        dependencies = table["dependencies"] if "dependencies" in keys else None
+        buildings = _array_values(table["multi"]) if "multi" in keys else [table]
+        fac = self.faction(faction) if isinstance(faction, str) else faction
+        return [self._spawn_blueprint_building(bp, dependencies, fac, x, y) for bp in buildings]
+
+    def _spawn_blueprint_building(self, bp, dependencies, fac, ox: int, oy: int):
+        keys = set(bp.keys())
+        bx = int(bp["x"]) if "x" in keys else 0
+        by = int(bp["y"]) if "y" in keys else 0
+        overrides = {}
+        if "powered_down" in keys:
+            overrides["powered_down"] = bool(bp["powered_down"])
+        entity = self.spawn(bp["frame"], fac, ox + bx, oy + by, **overrides)
+
+        added_components = []
+        if "components" in keys:
+            for c in _array_values(bp["components"]):
+                comp = self.add_component(entity, c[1])
+                added_components.append(comp)
+                payload = c[3] if len(c) >= 3 else None
+                if payload is not None and dependencies is not None:
+                    comp_def = self.engine.data.components[c[1]]
+                    if comp_def is not None and comp_def.base_id == "c_behavior":
+                        sub_prog = dependencies[int(payload)]
+                        if sub_prog is not None:
+                            self._attach_behavior_to_component(comp, sub_prog)
+
+        if "regs" in keys:
+            for key, value in bp["regs"].items():
+                if isinstance(key, str) and "|" in key:
+                    comp_idx_s, reg_idx_s = key.split("|", 1)
+                    comp = added_components[int(comp_idx_s) - 1]
+                    comp.SetRegister(comp, int(reg_idx_s), value)
+                else:
+                    entity.SetRegister(entity, int(key), value)
+        return entity
 
     def step(self, n: int = 1) -> None:
         """Advance the world ``n`` ticks. Per tick (docs/mock_world_spec.md's tick order): the tick
