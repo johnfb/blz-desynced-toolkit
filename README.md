@@ -40,23 +40,23 @@ The runtime and CLI need the game data extract. By default they look for a sibli
 
 ### CLI
 
-The `bsf` subpackage is runnable as a module and reads stdin / writes stdout, built to sit in a shell pipeline against the game's own clipboard:
+`uv sync` installs a `desynced-bsf` console script; the `bsf` subpackage is also runnable directly as a module (`python -m blz.desynced_toolkit.bsf ...`, equivalent). Either form reads stdin / writes stdout, built to sit in a shell pipeline against the game's own clipboard:
 
 ```sh
 # decompile: .dcs string -> BSF text
-python -m blz.desynced_toolkit.bsf decompile < mybehavior.dcs > mybehavior.bsf
+desynced-bsf decompile < mybehavior.dcs > mybehavior.bsf
 
 # hand-edit mybehavior.bsf, then compile back: BSF text -> .dcs string
-python -m blz.desynced_toolkit.bsf compile < mybehavior.bsf > mybehavior.dcs
+desynced-bsf compile < mybehavior.bsf > mybehavior.dcs
 
 # wire-position-independent diff between two .dcs saves
-python -m blz.desynced_toolkit.bsf semantic-diff a.dcs b.dcs
+desynced-bsf semantic-diff a.dcs b.dcs
 
 # lint a BSF file or .dcs string for legal-but-suspicious constructs
-python -m blz.desynced_toolkit.bsf lint < mybehavior.bsf
+desynced-bsf lint < mybehavior.bsf
 
 # look up an internal game id <-> in-game display name
-python -m blz.desynced_toolkit.bsf ids radar
+desynced-bsf ids radar
 ```
 
 Add `--annotate` to `decompile` to inline `#` comments with in-game display names for correlating BSF text against the visual editor.
@@ -64,9 +64,9 @@ Add `--annotate` to `decompile` to inline `#` comments with in-game display name
 On a machine with clipboard access to the game (e.g. a shared clipboard between a Windows gaming host and this environment), this chains directly against the game's own copy/paste:
 
 ```sh
-cb -o | python -m blz.desynced_toolkit.bsf decompile > mybehavior.bsf
+cb -o | desynced-bsf decompile > mybehavior.bsf
 # ...edit mybehavior.bsf...
-python -m blz.desynced_toolkit.bsf compile < mybehavior.bsf | cb -i
+desynced-bsf compile < mybehavior.bsf | cb -i
 ```
 
 (`cb` above is a placeholder for whatever clipboard read/write command is available on your system, e.g. `xclip -selection clipboard`.)

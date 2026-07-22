@@ -1,10 +1,12 @@
 """CLI for round-tripping a real .dcs clipboard string through BSF text -- see
-docs/behavior_source_format.md for the grammar. Meant to sit directly in a shell pipeline with the
-game's own clipboard, e.g. (with `cb` a wrapper script for `xclip -selection clipboard`):
+docs/behavior_source_format.md for the grammar. Installed as the `desynced-bsf` console script
+(see `[project.scripts]` in pyproject.toml); `python -m blz.desynced_toolkit.bsf` also works and
+is equivalent. Meant to sit directly in a shell pipeline with the game's own clipboard, e.g.
+(with `cb` a wrapper script for `xclip -selection clipboard`):
 
-    cb -o | python -m blz.desynced_toolkit.bsf decompile > mybehavior.bsf
+    cb -o | desynced-bsf decompile > mybehavior.bsf
     # ...edit mybehavior.bsf by hand...
-    python -m blz.desynced_toolkit.bsf compile < mybehavior.bsf | cb -i
+    desynced-bsf compile < mybehavior.bsf | cb -i
 
 Only handles a top-level behavior/program clipboard item (.dcs type char 'C', the "Copy
 Program" action in the in-game editor) -- a blueprint ('B', with components/frames around it)
@@ -46,8 +48,15 @@ def _make_engine(game_data: str | None) -> LupaEngine:
     return LupaEngine(open_asset_source(game_data_dir))
 
 
+def _prog_name() -> str:
+    # `python -m` invocation sets argv[0] to the module's full file path; the console
+    # script sets it to the installed script name -- show whichever form actually runs.
+    name = Path(sys.argv[0]).name
+    return "python -m blz.desynced_toolkit.bsf" if name == "__main__.py" else name
+
+
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="python -m blz.desynced_toolkit.bsf")
+    parser = argparse.ArgumentParser(prog=_prog_name())
     parser.add_argument(
         "--game-data",
         help="path to the game data extract (default: sibling desynced-game-data dir, or $DESYNCED_GAME_DATA)",
