@@ -5,6 +5,8 @@ description = "Compiler/decompiler and lupa-backed runtime for Desynced behavior
 authors = [
     { name = "John Bridgman", email = "johnfbiii@gmail.com" }
 ]
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.14"
 dependencies = [
     "lupa>=2.8",
