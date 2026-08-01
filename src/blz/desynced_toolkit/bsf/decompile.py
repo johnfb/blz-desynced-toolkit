@@ -142,10 +142,17 @@ def _assign_descriptive_ids(nodes: dict[str, BsfNode], order: list[str]) -> tupl
     """Replace the positional `n{idx}` decompile ids with role-derived ones, and mark
     `id_explicit` = "is this node actually referenced". Only referenced nodes (branch/jump
     targets) get a descriptive, surface-visible id; every other node keeps a positional id that
-    render_text.py won't print. Same-base collisions among referenced nodes get an occurrence
-    suffix (`set_reg`, `set_reg_2`) in wire order -- rare (most targets are labels named by a
-    unique Label value), and fully wire-order-independent disambiguation is the sequenced
-    canonical-decompile follow-up (todo)."""
+    render_text.py won't print. The first same-base target in the whole file keeps the bare op
+    name (`set_reg`); every later same-base target is disambiguated by the nearest preceding
+    top-level `label` node's own value (`set_reg_arrow_up`), falling back to a numeric suffix
+    only for a second same-base collision *within that same label section*
+    (`set_reg_arrow_up_2`). A pure running counter (tried first, `set_reg_2`/`set_reg_3`/...)
+    doesn't actually localize anything when -- as in a real user edit,
+    `library/fendersons-transport-v2-0.bsf`, 2026-08-01 -- most sections only ever contribute one
+    colliding target each: every section still fights over the same small pool of numbers in
+    wire order, so one inserted/removed target near the top reshuffles the suffix of every later,
+    otherwise-unrelated section regardless. Naming the suffix after its own section instead means
+    a section keeps its id unless *that section itself* is what changed."""
     # A `label` node is a dispatch target by nature -- a dynamic `jump(Label=$x)` no static walk
     # resolves can still land on it -- so it always earns its descriptive id, even when nothing
     # statically references it. (lint.py exempts labels from the unreferenced-id warning for the
@@ -154,19 +161,26 @@ def _assign_descriptive_ids(nodes: dict[str, BsfNode], order: list[str]) -> tupl
     used = {nid for nid in order if nid not in should_id}  # reserve the kept positional ids
     rename: dict[str, str] = {}
     explicit: dict[str, bool] = {}
+    scope_name = "start"  # before any top-level label node
     for nid in order:
         if nid not in should_id:
             rename[nid] = nid
             explicit[nid] = False
             continue
-        base = _base_slug(nodes[nid])
-        cand, k = base, 2
-        while cand in used:
-            cand = f"{base}_{k}"
-            k += 1
+        node = nodes[nid]
+        base = _base_slug(node)
+        if base not in used:
+            cand = base
+        else:
+            cand, k = f"{base}_{scope_name}", 2
+            while cand in used:
+                cand = f"{base}_{scope_name}_{k}"
+                k += 1
         used.add(cand)
         rename[nid] = cand
         explicit[nid] = True
+        if node.op == "label":
+            scope_name = base[len("label_") :] if base.startswith("label_") else base
 
     def remap(t):
         return t if not isinstance(t, str) or t == "POP" else rename.get(t, t)

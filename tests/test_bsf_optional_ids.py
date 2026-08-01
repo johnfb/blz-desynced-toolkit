@@ -11,7 +11,7 @@ import pytest
 
 from blz.desynced_toolkit.bsf.argcache import ArgCache
 from blz.desynced_toolkit.bsf.compile import compile_behavior
-from blz.desynced_toolkit.bsf.decompile import decompile_dcs
+from blz.desynced_toolkit.bsf.decompile import decompile_behavior, decompile_dcs
 from blz.desynced_toolkit.bsf.parse_text import BsfParseError, parse_behavior
 from blz.desynced_toolkit.bsf.render_text import referenced_node_ids, render_behavior
 from blz.desynced_toolkit.lua_util import to_py
@@ -182,6 +182,56 @@ def test_own_line_render_roundtrips(engine, argcache, fname):
     assert to_py(compile_behavior(engine, b, argcache)) == to_py(
         compile_behavior(engine, b2, argcache)
     )
+
+
+def test_collision_suffix_scoped_to_enclosing_label(engine, argcache):
+    """Same-base collisions (two `set_reg` targets, say) are disambiguated by the nearest
+    enclosing top-level `label` section's own value, not a running counter across the whole
+    file. A real user edit (library/fendersons-transport-v2-0.bsf, 2026-08-01) added one new
+    colliding target near the top of a behavior and, under the old whole-file counter, shifted
+    the suffix of eleven other `set_reg` targets in later, unrelated state sections -- section
+    scoping means a change inside one section can't touch another section's ids."""
+    text = (
+        "behavior T():\n\n"
+        "set_reg(Value=0, Target=$y)\n"
+        "check_number(Value=$X, Compare=1)  >tgt_a (If Larger) >NEXT (If Smaller) >NEXT (If Equal)\n"
+        "set_reg(Value=1, Target=$y)  >POP (next)\n"
+        "tgt_a: set_reg(Value=2, Target=$y)  >POP (next)\n"
+        "label(Label=v_arrow_up)\n"
+        "check_number(Value=$X, Compare=2)  >tgt_b (If Larger) >NEXT (If Smaller) >NEXT (If Equal)\n"
+        "set_reg(Value=3, Target=$y)  >POP (next)\n"
+        "tgt_b: set_reg(Value=4, Target=$y)  >POP (next)\n"
+        "label(Label=v_arrow_down)\n"
+        "check_number(Value=$X, Compare=3)  >tgt_c (If Larger) >NEXT (If Smaller) >NEXT (If Equal)\n"
+        "set_reg(Value=5, Target=$y)  >POP (next)\n"
+        "tgt_c: set_reg(Value=6, Target=$y)  >POP (next)\n"
+    )
+
+    def redecompiled_ids(t: str) -> set[str]:
+        b = parse_behavior(t, argcache)
+        table = compile_behavior(engine, b, argcache)
+        redone = decompile_behavior(engine, table, argcache)
+        return {n.id for n in redone.nodes.values() if n.id_explicit}
+
+    ids = redecompiled_ids(text)
+    assert "set_reg" in ids  # first-ever occurrence stays bare
+    assert "set_reg_arrow_up" in ids
+    assert "set_reg_arrow_down" in ids
+
+    # Add one more colliding `set_reg` target, but only in the first (unlabeled) section.
+    text2 = text.replace(
+        "tgt_a: set_reg(Value=2, Target=$y)  >POP (next)\n",
+        "tgt_a: set_reg(Value=2, Target=$y)  >POP (next)\n"
+        "check_number(Value=$X, Compare=9)  >tgt_a2 (If Larger) >NEXT (If Smaller) >NEXT (If Equal)\n"
+        "set_reg(Value=9, Target=$y)  >POP (next)\n"
+        "tgt_a2: set_reg(Value=10, Target=$y)  >POP (next)\n",
+    )
+    ids2 = redecompiled_ids(text2)
+    # the unrelated later sections keep their exact ids...
+    assert "set_reg_arrow_up" in ids2
+    assert "set_reg_arrow_down" in ids2
+    # ...only the edited section grew a new, differently-scoped collision
+    assert "set_reg_start" in ids2
 
 
 def test_dangling_id_declaration_is_rejected(engine, argcache):
